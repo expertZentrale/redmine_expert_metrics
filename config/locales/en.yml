@@ -1,0 +1,16 @@
+en:
+  label_expert_metrics_active_users: "Active users"
+  text_expert_metrics_intro: "Users that sent at least one request in the last %{minutes} minutes. The list is based on Redmine's session tokens, so API-key requests and mail fetching do not count. Check it before maintenance to see whether anybody is still working."
+  label_expert_metrics_active_last: "Active in the last %{window}"
+  label_expert_metrics_sessions_total: "Logged-in sessions"
+  label_expert_metrics_recent_logins: "Logins in the last 24 h"
+  label_expert_metrics_collected_at: "As of"
+  label_expert_metrics_refresh: "Refresh"
+  label_expert_metrics_prometheus: "Prometheus metrics"
+  field_expert_metrics_last_activity: "Last activity"
+  field_expert_metrics_session_since: "Logged in since"
+  field_expert_metrics_sessions: "Sessions"
+  label_expert_metrics_minutes_ago:
+    zero: "just now"
+    one: "1 min ago"
+    other: "%{count} min ago"

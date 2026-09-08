@@ -1,0 +1,27 @@
+# Changelog – redmine_expert_metrics
+
+> 🇬🇧 English version · [Deutsche Version](CHANGELOG.de.md)
+>
+> EN is authoritative — release notes are generated from this file.
+
+## [1.0.0] - 2026-09-08
+
+### Added
+- **Administration → Active users** (`app/controllers/expert_metrics_controller.rb`,
+  `app/views/expert_metrics/active_users.html.erb`): users with a session request in the last
+  60 minutes, most recent first, with last activity, login time and session count; summary of
+  active users (5/15/60 min), logged-in sessions and logins in the last 24 h. Auto-refreshes
+  every minute. Same data as JSON at `/admin/active_users.json` for admin API keys.
+- **`GET /metrics`** Prometheus text exposition (`lib/redmine_expert_metrics/exposition.rb`):
+  `redmine_active_users{window}`, `redmine_sessions_total`, `redmine_recent_logins_users{window="24h"}`,
+  `redmine_users_total{status}`, `redmine_projects_total{status}`, `redmine_issues_total{state}`,
+  `redmine_metrics_collect_seconds`, `redmine_info{redmine_version,plugin_version}`.
+  Aggregate numbers only. Open unless `metrics_token` is set in `configuration.yml`; then a
+  bearer token or `?token=` is required. Admin session or admin API key always passes. Works
+  with "Authentication required" enabled.
+- **Collector** (`lib/redmine_expert_metrics/collector.rb`): activity derived from core's
+  session tokens (`tokens.action = 'session'`, `updated_on` bumped by `User.verify_session_token`),
+  session validity mirrors `session_lifetime` / `session_timeout`. Snapshot cached 15 s in
+  `Rails.cache`. No migration, no settings, no permissions.
+- Admin menu entry with a version-dependent icon (core SVG sprite on Redmine 6/7, CSS sprite on 5).
+- MiniTest suite (`test/unit/collector_test.rb`, `test/functional/expert_metrics_controller_test.rb`).

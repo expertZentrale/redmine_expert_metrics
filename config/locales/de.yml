@@ -1,0 +1,16 @@
+de:
+  label_expert_metrics_active_users: "Aktive Benutzer"
+  text_expert_metrics_intro: "Benutzer, die in den letzten %{minutes} Minuten mindestens eine Anfrage gesendet haben. Grundlage sind die Sitzungs-Token von Redmine, API-Key-Zugriffe und der Mailabruf zählen nicht mit. Vor Wartungsarbeiten hier nachsehen, ob noch jemand arbeitet."
+  label_expert_metrics_active_last: "Aktiv in den letzten %{window}"
+  label_expert_metrics_sessions_total: "Angemeldete Sitzungen"
+  label_expert_metrics_recent_logins: "Anmeldungen in den letzten 24 h"
+  label_expert_metrics_collected_at: "Stand"
+  label_expert_metrics_refresh: "Aktualisieren"
+  label_expert_metrics_prometheus: "Prometheus-Metriken"
+  field_expert_metrics_last_activity: "Letzte Aktivität"
+  field_expert_metrics_session_since: "Angemeldet seit"
+  field_expert_metrics_sessions: "Sitzungen"
+  label_expert_metrics_minutes_ago:
+    zero: "gerade eben"
+    one: "vor 1 Min."
+    other: "vor %{count} Min."

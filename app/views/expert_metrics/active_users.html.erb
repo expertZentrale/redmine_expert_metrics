@@ -1,0 +1,56 @@
+<% html_title l(:label_expert_metrics_active_users) %>
+<% content_for :header_tags do %>
+  <meta http-equiv="refresh" content="60">
+<% end %>
+
+<div class="contextual">
+  <%= link_to l(:label_expert_metrics_refresh), expert_metrics_active_users_path, :class => 'icon icon-reload' %>
+  <%= link_to 'JSON', expert_metrics_active_users_path(:format => 'json') %>
+  <%= link_to l(:label_expert_metrics_prometheus), expert_metrics_prometheus_path %>
+</div>
+
+<h2><%= l(:label_expert_metrics_active_users) %></h2>
+
+<p><%= l(:text_expert_metrics_intro, :minutes => @window) %></p>
+
+<div class="box">
+  <ul>
+    <% RedmineExpertMetrics::Collector::WINDOWS.each_key do |window| %>
+      <li><%= l(:label_expert_metrics_active_last, :window => window.sub('m', ' min')) %>:
+        <strong><%= @snapshot['active_users'][window] %></strong></li>
+    <% end %>
+    <li><%= l(:label_expert_metrics_sessions_total) %>: <strong><%= @snapshot['sessions'] %></strong></li>
+    <li><%= l(:label_expert_metrics_recent_logins) %>: <strong><%= @snapshot['recent_logins_24h'] %></strong></li>
+    <li><%= l(:label_expert_metrics_collected_at) %>: <%= format_time(Time.parse(@snapshot['collected_at'])) %></li>
+  </ul>
+</div>
+
+<% if @users.empty? %>
+  <p class="nodata"><%= l(:label_no_data) %></p>
+<% else %>
+  <div class="autoscroll">
+    <table class="list expert-metrics-active-users">
+      <thead>
+        <tr>
+          <th><%= l(:field_login) %></th>
+          <th><%= l(:field_name) %></th>
+          <th><%= l(:field_expert_metrics_last_activity) %></th>
+          <th><%= l(:field_expert_metrics_session_since) %></th>
+          <th><%= l(:field_expert_metrics_sessions) %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @users.each do |row| %>
+          <% minutes = ((Time.now - row[:last_activity]) / 60).floor %>
+          <tr class="<%= cycle('odd', 'even') %>">
+            <td class="username"><%= link_to row[:user].login, user_path(row[:user]) %></td>
+            <td class="name"><%= row[:user].name %></td>
+            <td title="<%= format_time(row[:last_activity]) %>"><%= l(:label_expert_metrics_minutes_ago, :count => minutes) %></td>
+            <td><%= format_time(row[:session_since]) %></td>
+            <td class="count"><%= row[:sessions] %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
