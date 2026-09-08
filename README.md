@@ -23,6 +23,8 @@ Works on **Redmine 5.1, 6.0, 6.1 and 7.0**.
 | `redmine_users_total` | `status` = `active`, `registered`, `locked` | user accounts |
 | `redmine_projects_total` | `status` = `active` | projects |
 | `redmine_issues_total` | `state` = `open`, `closed` | issues by the closed flag of their status |
+| `redmine_notifications_sent_total` | `project` | notification mails Redmine core delivered to its users, one per recipient (counter); empty project for account and security mails |
+| `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | mails recorded by [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` received from customers, `out` sent to customers (replies, autoresponder, follow-ups), `init` initial mail of a ticket opened in Redmine. Only present when that plugin is installed (counter) |
 | `redmine_metrics_collect_seconds` | – | wall time of the last uncached collection |
 | `redmine_info` | `redmine_version`, `plugin_version` | always 1 |
 
@@ -36,6 +38,24 @@ session token, so they do not count as "active".
 
 The snapshot behind `/metrics` and the admin page is cached for 15 seconds in `Rails.cache`,
 so several pods scraped every few seconds still cost one set of queries.
+
+## How mails are counted
+
+- **Notifications to Redmine users**: a `Mail` observer counts every delivered message that
+  carries core's `X-Mailer: Redmine` header, labelled with its `X-Redmine-Project`. Redmine
+  sends one mail per recipient, so this is "mails delivered", not "events". The counts live in
+  the plugin's own table `expert_metrics_counters` (one migration), shared by all pods and
+  surviving restarts.
+- **Customer mail of the helpdesk plugin**: read straight from its `helpdesk_messages` table,
+  grouped by project and direction. Those mails do not carry the core header, so the two
+  metrics never overlap.
+
+Both are cumulative, so use `increase()` / `rate()` in Prometheus:
+
+```promql
+sum by (project) (increase(redmine_helpdesk_mails_total{direction="in"}[24h]))
+sum by (project) (increase(redmine_notifications_sent_total[1h]))
+```
 
 ## Multiple instances (Kubernetes)
 
@@ -69,7 +89,13 @@ git clone https://github.com/expertZentrale/redmine_expert_metrics.git
 # restart Redmine
 ```
 
-No migrations, no settings, no permissions — the plugin is active as soon as it loads.
+Then run the plugin migration (one small counter table):
+
+```bash
+bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
+```
+
+No settings, no permissions — the plugin is active as soon as it loads.
 
 ## Usage before maintenance
 

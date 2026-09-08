@@ -4,6 +4,26 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [1.1.0] - 2026-09-08
+
+### Hinzugefügt
+- **`redmine_notifications_sent_total{project}`** (`lib/redmine_expert_metrics/mail_observer.rb`,
+  `app/models/expert_metrics_counter.rb`): ein in `init.rb` registrierter `Mail`-Observer zählt
+  jede zugestellte Nachricht mit dem Kern-Header `X-Mailer: Redmine`, gelabelt mit
+  `X-Redmine-Project` (leer bei Konto-/Sicherheitsmails). Eine Mail pro Empfänger. Die Zähler
+  liegen in der neuen Tabelle `expert_metrics_counters` mit atomarem `UPDATE value = value + n`,
+  gemeinsam für alle Pods und über Neustarts hinweg. Fehler im Observer werden geloggt, nie geworfen.
+- **`redmine_helpdesk_mails_total{project,direction}`** (`lib/redmine_expert_metrics/collector.rb`):
+  kumulative Zahlen aus der Tabelle `helpdesk_messages` von redmine_expert_helpdesk, gruppiert
+  nach Projektkennung und Richtung (`in` empfangen, `out` an Kunden gesendet, `init`). Nur
+  vorhanden, wenn dieses Plugin installiert ist. Beide neuen Metriken sind Prometheus-Counter
+  (`lib/redmine_expert_metrics/exposition.rb`) und Teil der JSON-Zusammenfassung.
+- Tests: `test/unit/mail_counter_test.rb`.
+
+### Migration
+- `001_create_expert_metrics_counters.rb` — Tabelle `expert_metrics_counters(name, label, value, updated_on)`,
+  eindeutiger Index auf `(name, label)`.
+
 ## [1.0.0] - 2026-09-08
 
 ### Hinzugefügt
@@ -23,6 +43,6 @@
 - **Collector** (`lib/redmine_expert_metrics/collector.rb`): Aktivität aus den Sitzungs-Token des
   Kerns (`tokens.action = 'session'`, `updated_on` wird von `User.verify_session_token` gesetzt),
   Sitzungsgültigkeit wie `session_lifetime` / `session_timeout`. Datenstand 15 s im `Rails.cache`.
-  Keine Migration, keine Einstellungen, keine Berechtigungen.
+  Keine Einstellungen, keine Berechtigungen.
 - Eintrag im Administrationsmenü mit versionsabhängigem Icon (Core-SVG-Sprite auf Redmine 6/7, CSS-Sprite auf 5).
 - MiniTest-Suite (`test/unit/collector_test.rb`, `test/functional/expert_metrics_controller_test.rb`).

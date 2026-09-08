@@ -7,6 +7,7 @@ class RedmineExpertMetricsCollectorTest < ActiveSupport::TestCase
   def setup
     Rails.cache.delete(RedmineExpertMetrics::Collector::CACHE_KEY)
     Token.where(:action => 'session').delete_all
+    ExpertMetricsCounter.delete_all
   end
 
   def test_active_users_counts_distinct_users_per_window

@@ -1,7 +1,8 @@
 # CLAUDE.md – redmine_expert_metrics
 
-Small Redmine plugin: "who is active right now" as an admin page + JSON, and aggregate
-numbers as Prometheus metrics on `/metrics`. No migrations, no settings, no permissions.
+Small Redmine plugin: "who is active right now" as an admin page + JSON, aggregate
+numbers and mail counters as Prometheus metrics on `/metrics`. One migration (counter
+table), no settings, no permissions.
 
 This directory lives inside the parent `redmine-expert` deployment repo (`../../`). It is
 **not** a Redmine checkout — Redmine only exists inside the Docker image. Run everything
@@ -17,7 +18,12 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   never user names.
 - `app/controllers/expert_metrics_controller.rb` – `prometheus` (`GET /metrics`, optional
   `metrics_token` from `Redmine::Configuration`) and `active_users` (admin HTML/JSON).
-- `init.rb` – plugin registration + admin menu entry (icon switch for Redmine 5 vs 6/7).
+- `lib/redmine_expert_metrics/mail_observer.rb` + `app/models/expert_metrics_counter.rb` –
+  `Mail` observer counting core notifications (`X-Mailer: Redmine`, label `X-Redmine-Project`)
+  into `expert_metrics_counters`; helpdesk customer mails are read from `helpdesk_messages`
+  in the collector when that plugin is present.
+- `init.rb` – plugin registration, admin menu entry (icon switch for Redmine 5 vs 6/7),
+  observer registration.
 
 ## Conventions
 

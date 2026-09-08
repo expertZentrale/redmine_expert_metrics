@@ -23,6 +23,8 @@ Wartungsarbeiten herunterfahren?“. Läuft auf **Redmine 5.1, 6.0, 6.1 und 7.0*
 | `redmine_users_total` | `status` = `active`, `registered`, `locked` | Benutzerkonten |
 | `redmine_projects_total` | `status` = `active` | Projekte |
 | `redmine_issues_total` | `state` = `open`, `closed` | Tickets nach dem Geschlossen-Kennzeichen ihres Status |
+| `redmine_notifications_sent_total` | `project` | Benachrichtigungs-Mails, die der Redmine-Kern an seine Benutzer zugestellt hat, eine pro Empfänger (Counter); leeres Projekt für Konto- und Sicherheitsmails |
+| `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | Mails aus [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` von Kunden empfangen, `out` an Kunden gesendet (Antworten, Autoresponder, Nachfragen), `init` Erstmail eines in Redmine angelegten Tickets. Nur vorhanden, wenn dieses Plugin installiert ist (Counter) |
 | `redmine_metrics_collect_seconds` | – | Laufzeit der letzten ungecachten Erhebung |
 | `redmine_info` | `redmine_version`, `plugin_version` | immer 1 |
 
@@ -37,6 +39,24 @@ der Mailabruf erzeugen nie ein Sitzungs-Token und zählen daher nicht als „akt
 Der Datenstand hinter `/metrics` und der Admin-Seite wird 15 Sekunden im `Rails.cache`
 gehalten, sodass mehrere Pods, die alle paar Sekunden abgefragt werden, nur einen Satz
 Datenbankabfragen kosten.
+
+## Wie Mails gezählt werden
+
+- **Benachrichtigungen an Redmine-Benutzer**: ein `Mail`-Observer zählt jede zugestellte
+  Nachricht mit dem Kern-Header `X-Mailer: Redmine`, gelabelt mit ihrem `X-Redmine-Project`.
+  Redmine schickt eine Mail pro Empfänger, gezählt werden also „zugestellte Mails“, nicht
+  „Ereignisse“. Die Zähler liegen in der plugineigenen Tabelle `expert_metrics_counters`
+  (eine Migration), gemeinsam für alle Pods und über Neustarts hinweg.
+- **Kundenmails des Helpdesk-Plugins**: direkt aus dessen Tabelle `helpdesk_messages`, nach
+  Projekt und Richtung gruppiert. Diese Mails tragen den Kern-Header nicht, die beiden
+  Metriken überschneiden sich also nie.
+
+Beide sind kumulativ, in Prometheus daher `increase()` / `rate()` verwenden:
+
+```promql
+sum by (project) (increase(redmine_helpdesk_mails_total{direction="in"}[24h]))
+sum by (project) (increase(redmine_notifications_sent_total[1h]))
+```
 
 ## Mehrere Instanzen (Kubernetes)
 
@@ -70,7 +90,13 @@ git clone https://github.com/expertZentrale/redmine_expert_metrics.git
 # Redmine neu starten
 ```
 
-Keine Migrationen, keine Einstellungen, keine Berechtigungen — das Plugin ist aktiv, sobald es geladen wird.
+Danach die Plugin-Migration ausführen (eine kleine Zählertabelle):
+
+```bash
+bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
+```
+
+Keine Einstellungen, keine Berechtigungen — das Plugin ist aktiv, sobald es geladen wird.
 
 ## Nutzung vor Wartungsarbeiten
 

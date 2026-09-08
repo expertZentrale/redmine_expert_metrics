@@ -59,8 +59,30 @@ module RedmineExpertMetrics
         'projects_active'   => Project.active.count,
         'issues_open'       => Issue.open.count,
         'issues_closed'     => Issue.open(false).count,
+        'notifications_sent' => ExpertMetricsCounter.values(ExpertMetricsCounter::NOTIFICATIONS_SENT),
+        'helpdesk_mails'    => helpdesk_mail_counts,
         'collect_seconds'   => (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(4)
       }
+    end
+
+    # Mails recorded by redmine_expert_helpdesk, per project identifier and
+    # direction ("in" = received from customers, "out" = sent to customers,
+    # "init" = initial mail of a ticket opened in Redmine). Cumulative counts
+    # straight from helpdesk_messages, so Prometheus can treat them as counters.
+    # nil when the helpdesk plugin is not installed.
+    def helpdesk_mail_counts
+      return nil unless helpdesk_available?
+      rows = ::HelpdeskMessage.joins(:issue => :project)
+                              .group('projects.identifier', 'helpdesk_messages.direction').count
+      rows.each_with_object({}) do |((identifier, direction), count), h|
+        (h[identifier] ||= {})[direction] = count
+      end.sort.to_h
+    end
+
+    def helpdesk_available?
+      defined?(::HelpdeskMessage) && ::HelpdeskMessage.table_exists?
+    rescue StandardError
+      false
     end
 
     # One row per user with a session request in the last +minutes+ minutes,

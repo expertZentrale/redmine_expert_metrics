@@ -8,6 +8,7 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     User.current = nil
     Rails.cache.delete(RedmineExpertMetrics::Collector::CACHE_KEY)
     Token.where(:action => 'session').delete_all
+    ExpertMetricsCounter.delete_all
   end
 
   # --- /metrics -----------------------------------------------------------

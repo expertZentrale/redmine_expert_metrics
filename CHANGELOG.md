@@ -4,6 +4,26 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [1.1.0] - 2026-09-08
+
+### Added
+- **`redmine_notifications_sent_total{project}`** (`lib/redmine_expert_metrics/mail_observer.rb`,
+  `app/models/expert_metrics_counter.rb`): a `Mail` observer registered in `init.rb` counts
+  every delivered message carrying core's `X-Mailer: Redmine` header, labelled with
+  `X-Redmine-Project` (empty for account/security mails). One mail per recipient. Counts are
+  stored in the new table `expert_metrics_counters` with an atomic `UPDATE value = value + n`,
+  so all pods share them and they survive restarts. Errors in the observer are logged, never raised.
+- **`redmine_helpdesk_mails_total{project,direction}`** (`lib/redmine_expert_metrics/collector.rb`):
+  cumulative counts from redmine_expert_helpdesk's `helpdesk_messages` table grouped by project
+  identifier and direction (`in` received, `out` sent to customers, `init`). Only emitted when
+  that plugin is installed. Both new metrics are exposed as Prometheus counters
+  (`lib/redmine_expert_metrics/exposition.rb`) and included in the JSON summary.
+- Tests: `test/unit/mail_counter_test.rb`.
+
+### Migration
+- `001_create_expert_metrics_counters.rb` — table `expert_metrics_counters(name, label, value, updated_on)`,
+  unique index on `(name, label)`.
+
 ## [1.0.0] - 2026-09-08
 
 ### Added
@@ -22,6 +42,6 @@
 - **Collector** (`lib/redmine_expert_metrics/collector.rb`): activity derived from core's
   session tokens (`tokens.action = 'session'`, `updated_on` bumped by `User.verify_session_token`),
   session validity mirrors `session_lifetime` / `session_timeout`. Snapshot cached 15 s in
-  `Rails.cache`. No migration, no settings, no permissions.
+  `Rails.cache`. No settings, no permissions.
 - Admin menu entry with a version-dependent icon (core SVG sprite on Redmine 6/7, CSS sprite on 5).
 - MiniTest suite (`test/unit/collector_test.rb`, `test/functional/expert_metrics_controller_test.rb`).
