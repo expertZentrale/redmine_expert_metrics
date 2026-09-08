@@ -59,7 +59,7 @@ module RedmineExpertMetrics
         'projects_active'   => Project.active.count,
         'issues_open'       => Issue.open.count,
         'issues_closed'     => Issue.open(false).count,
-        'notifications_sent' => ExpertMetricsCounter.values(ExpertMetricsCounter::NOTIFICATIONS_SENT),
+        'notifications_sent' => notification_counts,
         'helpdesk_mails'    => helpdesk_mail_counts,
         'collect_seconds'   => (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(4)
       }
@@ -83,6 +83,14 @@ module RedmineExpertMetrics
       defined?(::HelpdeskMessage) && ::HelpdeskMessage.table_exists?
     rescue StandardError
       false
+    end
+
+    # Delivered core notifications per project identifier. Empty until the
+    # plugin migration has created the counter table, so /metrics keeps working
+    # on a freshly installed plugin.
+    def notification_counts
+      return {} unless ExpertMetricsCounter.available?
+      ExpertMetricsCounter.values(ExpertMetricsCounter::NOTIFICATIONS_SENT)
     end
 
     # One row per user with a session request in the last +minutes+ minutes,

@@ -19,6 +19,10 @@
   vorhanden, wenn dieses Plugin installiert ist. Beide neuen Metriken sind Prometheus-Counter
   (`lib/redmine_expert_metrics/exposition.rb`) und Teil der JSON-Zusammenfassung.
 - Tests: `test/unit/mail_counter_test.rb`.
+- Beide Mailquellen sind abgesichert: `redmine_helpdesk_mails_total` wird nur erhoben, wenn das
+  Modell `HelpdeskMessage` und seine Tabelle existieren, und `redmine_notifications_sent_total`
+  bleibt leer (Observer still, keine Warnungen), bis `expert_metrics_counters` migriert wurde,
+  sodass `/metrics` auch bei einem frisch installierten Plugin antwortet.
 
 ### Migration
 - `001_create_expert_metrics_counters.rb` — Tabelle `expert_metrics_counters(name, label, value, updated_on)`,

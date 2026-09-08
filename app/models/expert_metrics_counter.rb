@@ -6,6 +6,13 @@ class ExpertMetricsCounter < ActiveRecord::Base
 
   validates :name, :presence => true
 
+  # False until db/migrate/001 has run. Schema-cache lookup, no query per call.
+  def self.available?
+    table_exists?
+  rescue StandardError
+    false
+  end
+
   def self.increment!(name, label = '', by = 1)
     label = label.to_s
     return if bump(name, label, by) > 0

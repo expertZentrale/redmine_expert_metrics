@@ -15,6 +15,8 @@ module RedmineExpertMetrics
 
     def delivered_email(mail)
       return unless header(mail, 'X-Mailer') == 'Redmine'
+      # Plugin loaded but migration not run yet: count nothing, warn nothing.
+      return unless ExpertMetricsCounter.available?
       ExpertMetricsCounter.increment!(ExpertMetricsCounter::NOTIFICATIONS_SENT,
                                       header(mail, 'X-Redmine-Project'))
     rescue StandardError => e

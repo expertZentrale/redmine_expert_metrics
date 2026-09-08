@@ -85,6 +85,18 @@ class RedmineExpertMetricsMailCounterTest < ActiveSupport::TestCase
     assert_includes text, "redmine_helpdesk_mails_total{project=\"ecookbook\",direction=\"out\"} 1\n"
   end
 
+  def test_collect_and_observer_tolerate_missing_counter_table
+    without_counter_table do
+      assert_nothing_raised { RedmineExpertMetrics::MailObserver.delivered_email(core_mail('ecookbook')) }
+      data = RedmineExpertMetrics::Collector.collect
+      assert_equal({}, data['notifications_sent'])
+      text = RedmineExpertMetrics::Exposition.render(data, '1.1.0')
+      assert_includes text, "# TYPE redmine_notifications_sent_total counter\n"
+      assert_not_includes text, 'redmine_notifications_sent_total{'
+    end
+    assert_equal({}, ExpertMetricsCounter.values(ExpertMetricsCounter::NOTIFICATIONS_SENT))
+  end
+
   def test_exposition_omits_helpdesk_metric_without_plugin
     data = RedmineExpertMetrics::Collector.collect.merge('helpdesk_mails' => nil)
     text = RedmineExpertMetrics::Exposition.render(data, '1.1.0')
@@ -92,6 +104,17 @@ class RedmineExpertMetricsMailCounterTest < ActiveSupport::TestCase
   end
 
   private
+
+  # Pretend db/migrate/001 has not run (minitest 6 ships no minitest/mock).
+  def without_counter_table
+    sc = ExpertMetricsCounter.singleton_class
+    sc.alias_method(:__orig_available?, :available?)
+    sc.define_method(:available?) { false }
+    yield
+  ensure
+    sc.alias_method(:available?, :__orig_available?)
+    sc.remove_method(:__orig_available?)
+  end
 
   def core_mail(project_identifier)
     Mail.new do

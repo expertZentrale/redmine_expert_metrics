@@ -19,6 +19,10 @@
   that plugin is installed. Both new metrics are exposed as Prometheus counters
   (`lib/redmine_expert_metrics/exposition.rb`) and included in the JSON summary.
 - Tests: `test/unit/mail_counter_test.rb`.
+- Both mail sources are guarded: `redmine_helpdesk_mails_total` is only collected when the
+  `HelpdeskMessage` model and its table exist, and `redmine_notifications_sent_total` stays
+  empty (observer silent, no warnings) until `expert_metrics_counters` has been migrated, so
+  `/metrics` keeps answering on a freshly installed plugin.
 
 ### Migration
 - `001_create_expert_metrics_counters.rb` — table `expert_metrics_counters(name, label, value, updated_on)`,
