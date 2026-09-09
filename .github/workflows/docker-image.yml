@@ -1,0 +1,137 @@
+name: Docker image smoke test
+
+# Complements the source based CI (ci.yml): tests the plugin against the
+# *official* Redmine Docker images (https://hub.docker.com/_/redmine) - the very
+# images we deploy with. For each tag the official image is started with a fresh
+# MariaDB, the plugin is mounted in and migrated via REDMINE_PLUGINS_MIGRATE.
+#
+# The official entrypoint runs with `set -Eeo pipefail`: if a core or plugin
+# migration fails, or init.rb raises while loading, the container exits and the
+# site never comes up. A successful `/login` (HTTP 200) therefore proves that the
+# plugin loads and migrates cleanly in the production image. On top of that we
+# scrape `/metrics`, which is this plugin's whole point and reaches the collector,
+# the exposition and the counter table in one request.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: docker-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: redmine:${{ matrix.tag }} (official image)
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Currently published, supported Redmine tags on Docker Hub.
+        tag: [ '5.1', '6.0', '6.1', '7.0' ]
+
+    env:
+      DB_NAME: redmine
+      DB_PASS: root
+
+    steps:
+      - name: Checkout plugin
+        uses: actions/checkout@v4
+        with:
+          path: redmine_expert_metrics
+
+      - name: Create docker network
+        run: docker network create rmnet
+
+      - name: Start MariaDB
+        run: |
+          docker run -d --name db --network rmnet \
+            -e MARIADB_ROOT_PASSWORD="$DB_PASS" \
+            -e MARIADB_DATABASE="$DB_NAME" \
+            --health-cmd="healthcheck.sh --connect --innodb_initialized" \
+            --health-interval=5s --health-timeout=5s --health-retries=20 \
+            mariadb:11.4 --transaction-isolation=READ-COMMITTED
+
+      - name: Wait for MariaDB to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' db 2>/dev/null || echo starting)
+            echo "attempt $i: db health=$status"
+            [ "$status" = "healthy" ] && exit 0
+            sleep 3
+          done
+          echo "MariaDB did not become healthy in time"; docker logs db; exit 1
+
+      - name: Start official Redmine ${{ matrix.tag }} with the plugin
+        run: |
+          docker run -d --name redmine --network rmnet -p 3000:3000 \
+            -e REDMINE_DB_MYSQL=db \
+            -e REDMINE_DB_DATABASE="$DB_NAME" \
+            -e REDMINE_DB_USERNAME=root \
+            -e REDMINE_DB_PASSWORD="$DB_PASS" \
+            -e REDMINE_PLUGINS_MIGRATE=1 \
+            -v "$GITHUB_WORKSPACE/redmine_expert_metrics:/usr/src/redmine/plugins/redmine_expert_metrics:ro" \
+            redmine:${{ matrix.tag }}
+
+      - name: Wait for Redmine to boot (migrations + init.rb load)
+        run: |
+          code=000
+          for i in $(seq 1 60); do
+            # If the container dies (failed migration / init.rb), fail right away.
+            if [ "$(docker inspect -f '{{.State.Running}}' redmine 2>/dev/null)" != "true" ]; then
+              echo "Redmine container exited early - dumping logs:"; docker logs redmine; exit 1
+            fi
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/login || true)
+            echo "attempt $i: GET /login -> HTTP $code"
+            [ "$code" = "200" ] && break
+            sleep 5
+          done
+          [ "$code" = "200" ] || { echo "Timed out waiting for Redmine to serve /login"; docker logs redmine; exit 1; }
+
+      - name: Assert the plugin was actually loaded and migrated
+        run: |
+          # The plugin migration prints its class while migrating
+          # (== N CreateExpertMetricsCounters: migrating ...). Match
+          # "expert metrics" case-insensitively - that covers the migration name
+          # as well as the version dependent header (Redmine 5.x prints the
+          # plugin *name* "Redmine expert Metrics", 6.x/7.x the *id*
+          # "redmine_expert_metrics"). No such output means the plugin was never
+          # mounted or recognised.
+          if ! docker logs redmine 2>&1 | grep -iqE 'expert[ _]?metrics'; then
+            echo "No expert metrics output in Redmine logs - plugin not mounted/migrated:"
+            docker logs redmine
+            exit 1
+          fi
+          echo "Plugin loaded and migrated in official redmine:${{ matrix.tag }} image."
+          docker logs redmine 2>&1 | grep -iE 'expert[ _]?metrics' | head -n 20 || true
+
+      - name: Scrape /metrics (no token configured, so the endpoint is open)
+        run: |
+          code=$(curl -s -o body.txt -w '%{http_code}' http://localhost:3000/metrics || true)
+          echo "GET /metrics -> HTTP $code"
+          head -n 30 body.txt || true
+          [ "$code" = "200" ] || { echo "/metrics did not answer with 200"; docker logs redmine; exit 1; }
+          # redmine_active_users comes from the collector, redmine_info carries
+          # the plugin version - together they prove the exposition rendered.
+          for metric in redmine_active_users redmine_info; do
+            grep -q "^${metric}" body.txt || {
+              echo "/metrics is missing ${metric}"; cat body.txt; docker logs redmine; exit 1; }
+          done
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          echo "===== redmine logs ====="; docker logs redmine 2>&1 || true
+          echo "===== db logs ====="; docker logs db 2>&1 || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f redmine db 2>/dev/null || true
+          docker network rm rmnet 2>/dev/null || true

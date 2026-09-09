@@ -4,6 +4,19 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [Unreleased]
+
+### Hinzugefügt
+- **CI, Issue-Vorlagen und Copilot-Anweisungen** (`.github/`): das Repository hat jetzt dieselbe
+  GitHub-Einrichtung wie `redmine_expert_agile` und `redmine_expert_helpdesk` — `ci.yml` führt die
+  MiniTest-Suite gegen Redmine 5.1/6.0/6.1/7.0-stable auf einer frischen MariaDB aus,
+  `docker-image.yml` hängt das Plugin in die offiziellen `redmine:5.1/6.0/6.1/7.0`-Images ein,
+  migriert es über `REDMINE_PLUGINS_MIGRATE` und verlangt Antworten von `/login` und `/metrics`
+  (mit Prüfung auf `redmine_active_users` und `redmine_info`), und `ISSUE_TEMPLATE/` liefert die
+  Formulare für Fehler und Wünsche. `.github/copilot-instructions.md` spiegelt `CLAUDE.md`; beide
+  haben die bisher nur implizierten Konventionen bekommen (Ruby-2.7-Syntax, keine Benutzernamen in
+  der Exposition, Migrationsnummerierung) sowie die Abschnitte zu CI und Releases.
+
 ## [1.1.1] - 2026-09-09
 
 ### Hinzugefügt

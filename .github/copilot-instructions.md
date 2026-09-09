@@ -1,4 +1,9 @@
-# CLAUDE.md – redmine_expert_metrics
+# Copilot instructions – redmine_expert_metrics
+
+This file mirrors [`CLAUDE.md`](../CLAUDE.md). The two are intentional duplicates for
+different tools — **keep them in sync when either changes.**
+
+## Overview
 
 Small Redmine plugin: "who is active right now" as an admin page + JSON, aggregate
 numbers and mail counters as Prometheus metrics on `/metrics`. One migration (counter
@@ -41,10 +46,14 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   only aggregates.
 - Add the next migration number; never edit a shipped migration.
 
-## Tests
+## Commands
 
 ```bash
-# from the parent repo root
+# Stack (from the parent repo root)
+docker-compose -f docker-compose.yml up --build
+
+# Tests (from the parent repo root; -e is required, a plain PLUGIN=... prefix
+# would set the variable in the compose process, not in the container)
 docker-compose -f docker-compose.yml --profile test run --build --rm -e PLUGIN=redmine_expert_metrics redmine-test
 ```
 
@@ -68,5 +77,3 @@ Releases are tag driven: bump `version` in `init.rb` (single source of truth), a
 `git tag vX.Y.Z && git push origin vX.Y.Z`. `release.yml` verifies that the tag matches the
 `init.rb` version, builds the notes from the matching CHANGELOG section and attaches the
 `.zip` / `.tar.gz` archives to the GitHub release.
-
-`.github/copilot-instructions.md` mirrors this file — keep both in sync.

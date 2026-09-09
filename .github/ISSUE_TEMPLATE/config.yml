@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/expertZentrale/redmine_expert_metrics/blob/main/README.md
+    about: Installation, metrics reference and the /metrics token.
+  - name: Changelog
+    url: https://github.com/expertZentrale/redmine_expert_metrics/blob/main/CHANGELOG.md
+    about: What changed in each release.

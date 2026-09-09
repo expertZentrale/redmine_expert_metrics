@@ -4,6 +4,19 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [Unreleased]
+
+### Added
+- **CI, issue templates and Copilot instructions** (`.github/`): the repository now carries the
+  same GitHub setup as `redmine_expert_agile` and `redmine_expert_helpdesk` — `ci.yml` runs the
+  MiniTest suite against Redmine 5.1/6.0/6.1/7.0-stable on a fresh MariaDB, `docker-image.yml`
+  mounts the plugin into the official `redmine:5.1/6.0/6.1/7.0` images, migrates it via
+  `REDMINE_PLUGINS_MIGRATE` and requires `/login` and `/metrics` to answer (asserting
+  `redmine_active_users` and `redmine_info` are exposed), and `ISSUE_TEMPLATE/` provides the bug
+  and feature forms. `.github/copilot-instructions.md` mirrors `CLAUDE.md`; both grew the
+  conventions that were only implicit so far (Ruby 2.7 syntax, no user names in the exposition,
+  migration numbering) plus the CI and release sections.
+
 ## [1.1.1] - 2026-09-09
 
 ### Added
