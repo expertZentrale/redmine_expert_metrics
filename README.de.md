@@ -96,6 +96,10 @@ Danach die Plugin-Migration ausführen (eine kleine Zählertabelle):
 bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
 ```
 
+Alternativ das Release-Archiv von der
+[Releases-Seite](https://github.com/expertZentrale/redmine_expert_metrics/releases) herunterladen
+und nach `plugins/` entpacken.
+
 Keine Einstellungen, keine Berechtigungen — das Plugin ist aktiv, sobald es geladen wird.
 
 ## Nutzung vor Wartungsarbeiten

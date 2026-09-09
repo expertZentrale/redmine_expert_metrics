@@ -1,0 +1,122 @@
+name: Release
+
+# Builds a plugin archive (.zip + .tar.gz) for every pushed vX.Y.Z tag and
+# publishes a GitHub release with notes taken from CHANGELOG.md.
+# Runs ONLY on tags (never on branches/PRs), so releases appear only when the
+# maintainer deliberately pushes a tag. To publish:
+#   1. set version '...' in init.rb, commit, push to main
+#   2. git tag vX.Y.Z (on that same commit) && git push origin vX.Y.Z
+# init.rb holds the version (single source of truth); the workflow only CHECKS
+# that the init.rb version and the tag agree, and packages the tree unchanged.
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write            # create the release and upload the archives
+
+# Never cancel a run of the same tag - a release should finish.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Full history + tags (the release notes step reads CHANGELOG.md from
+      #    the tagged commit, and a shallow clone hides neighbouring tags).
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Derive the version from the tag and validate it as semver.
+      - name: Derive and validate version from tag
+        id: ver
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"
+          if ! echo "$VER" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$'; then
+            echo "::error::Tag '$TAG' is not a valid semver version (expected vX.Y.Z)"
+            exit 1
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          case "$VER" in
+            *-*) echo "prerelease=true"  >> "$GITHUB_OUTPUT" ;;
+            *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      # 3. init.rb is the single source of truth - the tag has to point at a
+      #    commit that carries the matching version.
+      - name: Check init.rb version against tag
+        run: |
+          INIT_VER=$(sed -nE "s/^[[:space:]]*version '([^']*)'.*/\1/p" init.rb | head -1)
+          echo "init.rb: '${INIT_VER}'  /  tag: '${{ steps.ver.outputs.version }}'"
+          if [ "$INIT_VER" != "${{ steps.ver.outputs.version }}" ]; then
+            echo "::error::init.rb version '${INIT_VER}' does not match tag '${{ steps.ver.outputs.version }}'. Set version in init.rb, commit, and point the tag at that commit."
+            exit 1
+          fi
+
+      # 4. Release notes come from the "## [<version>]" section of CHANGELOG.md
+      #    (EN is authoritative). Taking the section instead of a diff against
+      #    the previous tag keeps reordered or edited older entries out of the
+      #    notes - git diff is line based and reads a moved block as
+      #    "deleted and added again".
+      - name: Build release notes from CHANGELOG
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          awk -v ver="$VER" '
+            $0 == "## [" ver "]" || index($0, "## [" ver "] ") == 1 { f = 1; next }
+            f && /^## / { exit }
+            f { print }
+          ' CHANGELOG.md > SECTION.md
+          if ! grep -q '[^[:space:]]' SECTION.md; then
+            echo "::error::CHANGELOG.md has no '## [${VER}]' section. Add the entry for this version, commit, and point the tag at that commit."
+            exit 1
+          fi
+          {
+            echo "## redmine_expert_metrics ${VER} - $(date +%Y-%m-%d)"
+            cat SECTION.md
+          } > RELEASE_NOTES.md
+          rm -f SECTION.md
+          echo "----- RELEASE_NOTES.md -----"
+          cat RELEASE_NOTES.md
+
+      # 5. Package the runtime files under a top-level redmine_expert_metrics/
+      #    folder, so the archive unpacks straight into redmine/plugins/.
+      #    Dev/CI/internal-docs files stay out.
+      - name: Package plugin (.zip + .tar.gz)
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          STAGE="$RUNNER_TEMP/pkg/redmine_expert_metrics"
+          mkdir -p "$STAGE"
+          rsync -a \
+            --exclude='.git' --exclude='.github' --exclude='.claude' \
+            --exclude='.gitignore' --exclude='.gitattributes' \
+            --exclude='test' --exclude='scripts' --exclude='docs' \
+            --exclude='CLAUDE.md' --exclude='plan.md' --exclude='ROADMAP.md' \
+            --exclude='.dev.env*' --exclude='.tokensave' --exclude='RELEASE_NOTES.md' \
+            ./ "$STAGE/"
+          (
+            cd "$RUNNER_TEMP/pkg"
+            zip -rq "$GITHUB_WORKSPACE/redmine_expert_metrics-${VER}.zip"    redmine_expert_metrics
+            tar czf "$GITHUB_WORKSPACE/redmine_expert_metrics-${VER}.tar.gz" redmine_expert_metrics
+          )
+          echo "----- package contents (.zip) -----"
+          unzip -l "redmine_expert_metrics-${VER}.zip" | head -n 40
+
+      # 6. Create the GitHub release for the tag and attach both archives.
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2   # picks up GITHUB_TOKEN itself
+        with:
+          name: redmine_expert_metrics ${{ steps.ver.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          prerelease: ${{ steps.ver.outputs.prerelease }}
+          files: |
+            redmine_expert_metrics-${{ steps.ver.outputs.version }}.zip
+            redmine_expert_metrics-${{ steps.ver.outputs.version }}.tar.gz

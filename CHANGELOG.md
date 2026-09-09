@@ -6,6 +6,14 @@
 
 ## [1.1.1] - 2026-09-09
 
+### Added
+- **Release workflow** (`.github/workflows/release.yml`): a pushed `vX.Y.Z` tag now builds the
+  plugin archives (`.zip` + `.tar.gz`, unpacking straight into `redmine/plugins/`) and publishes
+  a GitHub release with the notes of the matching `CHANGELOG.md` section — the same setup
+  `redmine_expert_agile` and `redmine_expert_helpdesk` use. The workflow refuses to run when
+  the `version` in `init.rb` and the tag disagree, so `init.rb` stays the single source of
+  truth. `README.md` / `README.de.md` point at the releases page as an install alternative.
+
 ### Changed
 - **Admin menu entry renamed to "expert Metrics"** (`init.rb`, `config/locales/{en,de}.yml`,
   `app/views/expert_metrics/active_users.html.erb`,
