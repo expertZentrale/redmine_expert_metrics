@@ -17,16 +17,19 @@ Redmine::Plugin.register :redmine_expert_metrics do
   name 'Redmine expert Metrics'
   author 'Dennis Buehring'
   description 'Shows who is currently working in Redmine and exposes that (plus a few basic totals) as Prometheus metrics. Works on Redmine 5.1 - 7.x.'
-  version '1.1.0'
+  version '1.1.1'
   url 'https://github.com/expertZentrale/redmine_expert_metrics'
   requires_redmine :version_or_higher => '5.0'
 
-  # Entry in the administration menu (sidebar + admin overview). The icon is
-  # version dependent, see redmine_expert_helpdesk for the same switch:
+  # Entry in the administration menu (sidebar + admin overview). It carries the
+  # plugin name like the other expert plugins do; a bare functional caption
+  # ("Active users") stood among Redmine's own areas without saying which
+  # plugin owns it. The icon is version dependent, see redmine_expert_helpdesk
+  # for the same switch:
   # - Redmine 6/7: core SVG sprite icon via :icon (render_single_menu_node calls
   #   sprite_icon). "user" ships with core, so no sprite of our own is needed.
   # - Redmine 5: the old CSS sprite via the "icon icon-*" class on the link.
-  menu_options = { :caption => :label_expert_metrics_active_users }
+  menu_options = { :caption => :label_expert_metrics }
   if Redmine::VERSION::MAJOR >= 6
     menu_options[:icon] = 'user'
     # The "icon" class makes the SVG inherit the blue currentColor stroke of the
@@ -35,7 +38,7 @@ Redmine::Plugin.register :redmine_expert_metrics do
   else
     menu_options[:html] = { :class => 'icon icon-user' }
   end
-  menu :admin_menu, :expert_metrics_active_users,
+  menu :admin_menu, :redmine_expert_metrics,
        { :controller => 'expert_metrics', :action => 'active_users' },
        menu_options
 end

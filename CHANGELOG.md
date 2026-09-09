@@ -4,6 +4,19 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [1.1.1] - 2026-09-09
+
+### Changed
+- **Admin menu entry renamed to "expert Metrics"** (`init.rb`, `config/locales/{en,de}.yml`,
+  `app/views/expert_metrics/active_users.html.erb`,
+  `app/controllers/expert_metrics_controller.rb`): the entry was captioned "Active users",
+  a bare functional name among Redmine's own administration areas that did not say which
+  plugin owns it. It now carries the plugin name like `redmine_expert_helpdesk` and
+  `redmine_expert_agile` do. The page heading follows the menu entry; the user list keeps
+  "Active users" as its own heading. The menu item is registered as `:redmine_expert_metrics`
+  (was `:expert_metrics_active_users`), `menu_item` in the controller follows. Routes and URLs
+  are unchanged.
+
 ## [1.1.0] - 2026-09-08
 
 ### Added

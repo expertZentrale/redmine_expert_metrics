@@ -8,7 +8,7 @@ Wartungsarbeiten herunterfahren?“. Läuft auf **Redmine 5.1, 6.0, 6.1 und 7.0*
 
 ## Was es macht
 
-- **Administration → Aktive Benutzer**: alle Benutzer mit mindestens einer Anfrage in den
+- **Administration → expert Metrics**: alle Benutzer mit mindestens einer Anfrage in den
   letzten 60 Minuten, neueste zuerst, mit letzter Aktivität, Anmeldezeitpunkt und Anzahl der
   Sitzungen. Die Seite aktualisiert sich jede Minute selbst. Oben eine Zusammenfassung: aktive
   Benutzer in den letzten 5 / 15 / 60 Minuten, angemeldete Sitzungen, Anmeldungen in den letzten 24 h.

@@ -9,7 +9,7 @@ class ExpertMetricsController < ApplicationController
   layout 'admin'
   self.main_menu = false
   # Highlights our entry in the admin sidebar.
-  menu_item :expert_metrics_active_users
+  menu_item :redmine_expert_metrics
 
   # The scrape must work with "Authentication required" enabled and must not be
   # bounced by the password-change / 2FA interstitials of a stale admin session.

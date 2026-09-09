@@ -1,4 +1,5 @@
 en:
+  label_expert_metrics: "expert Metrics"
   label_expert_metrics_active_users: "Active users"
   text_expert_metrics_intro: "Users that sent at least one request in the last %{minutes} minutes. The list is based on Redmine's session tokens, so API-key requests and mail fetching do not count. Check it before maintenance to see whether anybody is still working."
   label_expert_metrics_active_last: "Active in the last %{window}"

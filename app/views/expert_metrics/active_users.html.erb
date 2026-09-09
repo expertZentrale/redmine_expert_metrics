@@ -1,4 +1,4 @@
-<% html_title l(:label_expert_metrics_active_users) %>
+<% html_title l(:label_expert_metrics) %>
 <% content_for :header_tags do %>
   <meta http-equiv="refresh" content="60">
 <% end %>
@@ -9,7 +9,7 @@
   <%= link_to l(:label_expert_metrics_prometheus), expert_metrics_prometheus_path %>
 </div>
 
-<h2><%= l(:label_expert_metrics_active_users) %></h2>
+<h2><%= l(:label_expert_metrics) %></h2>
 
 <p><%= l(:text_expert_metrics_intro, :minutes => @window) %></p>
 
@@ -24,6 +24,8 @@
     <li><%= l(:label_expert_metrics_collected_at) %>: <%= format_time(Time.parse(@snapshot['collected_at'])) %></li>
   </ul>
 </div>
+
+<h3><%= l(:label_expert_metrics_active_users) %></h3>
 
 <% if @users.empty? %>
   <p class="nodata"><%= l(:label_no_data) %></p>

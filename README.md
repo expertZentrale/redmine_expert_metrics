@@ -8,7 +8,7 @@ Works on **Redmine 5.1, 6.0, 6.1 and 7.0**.
 
 ## What it does
 
-- **Administration → Active users**: every user with at least one request in the last 60
+- **Administration → expert Metrics**: every user with at least one request in the last 60
   minutes, most recent first, with last activity, login time and number of sessions. The page
   refreshes itself every minute. Summary on top: active users in the last 5 / 15 / 60 minutes,
   logged-in sessions, logins in the last 24 h.
