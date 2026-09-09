@@ -69,8 +69,13 @@ jobs:
           path: ${{ env.REDMINE_DIR }}/plugins/redmine_expert_metrics
 
       # 3. Native dependencies for mysql2 (and rmagick, if in the bundle).
+      #    The runner image ships a Google Chrome apt source we have no use for;
+      #    whenever its index is broken (`Hash Sum mismatch`) it takes the whole
+      #    `apt-get update` down with it, so drop it before refreshing the lists.
       - name: Install system packages
         run: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome*.list \
+                     /etc/apt/sources.list.d/google-chrome*.sources
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             default-libmysqlclient-dev libmagickwand-dev imagemagick pkg-config
