@@ -7,6 +7,15 @@
 ## [Unreleased]
 
 ### Hinzugefügt
+- **Fertiges Grafana-Dashboard zum Import** (`contrib/grafana/redmine-expert-metrics.json`):
+  Aktivität, Konten, Tickets und Mailaufkommen der Installation sowie eine Zeile zur
+  Scrape-Gesundheit. Importieren, Prometheus-Datenquelle auswählen — die Panels hängen an einer
+  Datenquellen-Variable, es muss nichts nachbearbeitet werden. Zwei Feinheiten stecken in den
+  Abfragen: Jedes Panel reduziert mit `max` statt `sum`, weil jeder Pod dieselben datenbankweiten
+  Zahlen meldet; und die Panels zur Scrape-Gesundheit sind auf die Redmine-Ziele begrenzt (Anzahl
+  der Instanzen aus `redmine_info`, *All* bei der Instance-Variable löst sich zu den Zielen auf,
+  die diese Metriken ausliefern), damit Sidecars mit demselben Job-Label nicht hineinrutschen. Die
+  Mail-Panels bleiben ohne redmine_expert_helpdesk leer. Liegt im Release-Archiv bei.
 - **CI, Issue-Vorlagen und Copilot-Anweisungen** (`.github/`): das Repository hat jetzt dieselbe
   GitHub-Einrichtung wie `redmine_expert_agile` und `redmine_expert_helpdesk` — `ci.yml` führt die
   MiniTest-Suite gegen Redmine 5.1/6.0/6.1/7.0-stable auf einer frischen MariaDB aus,

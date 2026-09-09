@@ -101,6 +101,31 @@ it into `plugins/`.
 
 No settings, no permissions — the plugin is active as soon as it loads.
 
+## Grafana dashboard
+
+A ready-made dashboard lives in
+[`contrib/grafana/redmine-expert-metrics.json`](contrib/grafana/redmine-expert-metrics.json).
+Import it under *Dashboards → New → Import*, upload the file or paste its contents, and pick your
+Prometheus datasource — nothing else needs configuring.
+
+It shows active users per window, logged-in sessions, accounts by status, open issues, active
+projects, helpdesk and notification mail volume, and a scrape-health row with collection time and
+per-target status. Two variables at the top narrow it down: **Job** (the scrape job of the Redmine
+installation) and **Instance**.
+
+Two details are built into the queries rather than left to the reader:
+
+- **Every panel aggregates with `max`, never `sum`.** Each pod reports the same database-wide
+  numbers, so summing them multiplies every figure by the number of replicas.
+- **The scrape-health panels follow the Redmine targets only.** `up` exists for every target in a
+  Prometheus — including sidecars that share the Redmine job label — so the instance count is read
+  from `redmine_info`, and *All* on the **Instance** variable expands to the targets that actually
+  serve these metrics.
+
+The mail panels stay empty unless
+[redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed;
+everything else works with this plugin alone.
+
 ## Usage before maintenance
 
 ```bash
