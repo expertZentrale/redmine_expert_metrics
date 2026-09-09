@@ -93,7 +93,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_active_users{window=\"5m\", job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_active_users{window=\"5m\", job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -161,7 +161,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_active_users{window=\"15m\", job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_active_users{window=\"15m\", job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -229,7 +229,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_active_users{window=\"60m\", job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_active_users{window=\"60m\", job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -297,7 +297,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_sessions_total{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_sessions_total{job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -365,7 +365,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_recent_logins_users{window=\"24h\", job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_recent_logins_users{window=\"24h\", job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -433,7 +433,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "count(redmine_info{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "count(redmine_info{job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -531,7 +531,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (window) (redmine_active_users{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max by (window) (redmine_active_users{job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -629,7 +629,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_sessions_total{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_sessions_total{job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -739,7 +739,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (status) (redmine_users_total{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max by (status) (redmine_users_total{job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -836,7 +836,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_issues_total{state=\"open\", job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_issues_total{state=\"open\", job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -904,7 +904,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (state) (redmine_issues_total{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max by (state) (redmine_issues_total{job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -972,7 +972,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_projects_total{status=\"active\", job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_projects_total{status=\"active\", job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -1084,7 +1084,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (direction) (rate(redmine_helpdesk_mails_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) * 3600",
+          "expr": "max by (direction) (rate(redmine_helpdesk_mails_total{job=~\"$job\"}[$__rate_interval])) * 3600",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -1183,7 +1183,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "topk(10, max by (project) (rate(redmine_notifications_sent_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) * 3600)",
+          "expr": "topk(10, max by (project) (rate(redmine_notifications_sent_total{job=~\"$job\"}[$__rate_interval])) * 3600)",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -1259,7 +1259,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "topk(10, round(max by (project) (increase(redmine_helpdesk_mails_total{direction=\"in\", job=~\"$job\", instance=~\"$instance\"}[$__range]))))",
+          "expr": "topk(10, round(max by (project) (increase(redmine_helpdesk_mails_total{direction=\"in\", job=~\"$job\"}[$__range]))))",
           "range": false,
           "instant": true,
           "refId": "A",
@@ -1335,7 +1335,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "topk(10, round(max by (project) (increase(redmine_helpdesk_mails_total{direction=\"out\", job=~\"$job\", instance=~\"$instance\"}[$__range]))))",
+          "expr": "topk(10, round(max by (project) (increase(redmine_helpdesk_mails_total{direction=\"out\", job=~\"$job\"}[$__range]))))",
           "range": false,
           "instant": true,
           "refId": "A",
@@ -1444,7 +1444,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(redmine_metrics_collect_seconds{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "max(redmine_metrics_collect_seconds{job=~\"$job\"})",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -1457,7 +1457,7 @@
       "id": 18,
       "type": "timeseries",
       "title": "Scrape up",
-      "description": "1 while Prometheus can reach /metrics on that target. Limited to the selected Redmine job.",
+      "description": "1 while Prometheus can reach /metrics on that target, 0 when it cannot.\n\nJoined against a 24h lookback on redmine_info for two reasons: `up` exists for every target in the Prometheus - sidecars share the Redmine job label - and a target that stops answering would otherwise go stale and vanish from the panel instead of dropping to 0. Within 24h of its last successful scrape, a dead target stays visible.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1540,7 +1540,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "up{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "up{job=~\"$job\"} and on (job, instance) max_over_time(redmine_info{job=~\"$job\"}[24h])",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -1605,7 +1605,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "redmine_info{job=~\"$job\", instance=~\"$instance\"}",
+          "expr": "redmine_info{job=~\"$job\"}",
           "range": false,
           "instant": true,
           "refId": "A",
@@ -1708,7 +1708,7 @@
         "hide": 0,
         "includeAll": false,
         "label": "Job",
-        "multi": true,
+        "multi": false,
         "name": "job",
         "options": [],
         "query": {
@@ -1721,32 +1721,7 @@
         "skipUrlSync": false,
         "sort": 1,
         "type": "query",
-        "description": "Scrape job of the Redmine installation. Deliberately without an All entry: the scrape-health panels read `up`, which exists for every target in the Prometheus, not just Redmine's."
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${datasource}"
-        },
-        "definition": "label_values(redmine_info{job=~\"$job\"}, instance)",
-        "hide": 0,
-        "includeAll": true,
-        "label": "Instance",
-        "multi": true,
-        "name": "instance",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(redmine_info{job=~\"$job\"}, instance)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 1,
-        "type": "query",
-        "description": "Narrows the scrape targets. Leaving this on All is correct: every pod reports the same numbers and the panels reduce them with max. All expands to the instances that actually serve redmine_info, which is what keeps sidecar targets sharing the same job label out of the scrape-health panel."
+        "description": "Scrape job of the Redmine installation. Single-select on purpose: the panels reduce with max, so two jobs selected at once would silently blend two installations into one number."
       }
     ]
   },

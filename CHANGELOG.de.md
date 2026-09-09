@@ -12,9 +12,11 @@
   Scrape-Gesundheit. Importieren, Prometheus-Datenquelle auswählen — die Panels hängen an einer
   Datenquellen-Variable, es muss nichts nachbearbeitet werden. Zwei Feinheiten stecken in den
   Abfragen: Jedes Panel reduziert mit `max` statt `sum`, weil jeder Pod dieselben datenbankweiten
-  Zahlen meldet; und die Panels zur Scrape-Gesundheit sind auf die Redmine-Ziele begrenzt (Anzahl
-  der Instanzen aus `redmine_info`, *All* bei der Instance-Variable löst sich zu den Zielen auf,
-  die diese Metriken ausliefern), damit Sidecars mit demselben Job-Label nicht hineinrutschen. Die
+  Zahlen meldet; die Job-Variable ist einfach auswählbar, weil zwei per `max` reduzierte Jobs zwei
+  Installationen zu einer Zahl verschmelzen würden; und die Panels zur Scrape-Gesundheit verknüpfen
+  `up` mit einem 24-h-Rückblick auf `redmine_info`, damit Sidecars mit demselben Job-Label
+  draußen bleiben und ein Ziel, das nicht mehr antwortet, als 0 sichtbar bleibt, statt zu
+  verschwinden. Die
   Mail-Panels bleiben ohne redmine_expert_helpdesk leer. Liegt im Release-Archiv bei.
 - **CI, Issue-Vorlagen und Copilot-Anweisungen** (`.github/`): das Repository hat jetzt dieselbe
   GitHub-Einrichtung wie `redmine_expert_agile` und `redmine_expert_helpdesk` — `ci.yml` führt die

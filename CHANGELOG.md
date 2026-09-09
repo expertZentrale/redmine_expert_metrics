@@ -11,10 +11,11 @@
   accounts, issues and mail volume of the installation, plus a scrape-health row. Import it and
   pick a Prometheus datasource — the panels are bound to a datasource variable, so nothing has to
   be edited afterwards. Two correctness details are baked into the queries: every panel reduces
-  with `max` instead of `sum`, because each pod reports the same database-wide numbers; and the
-  scrape-health panels are scoped to the Redmine targets (instance count read from `redmine_info`,
-  *All* on the instance variable expanding to the targets that serve these metrics) so that
-  sidecars sharing the Redmine job label cannot leak into them. The mail panels stay empty without
+  with `max` instead of `sum`, because each pod reports the same database-wide numbers; the job
+  variable is single-select, because two jobs reduced with `max` would blend two installations into
+  one number; and the scrape-health panels join `up` against a 24 h lookback on `redmine_info`, so
+  that sidecars sharing the Redmine job label stay out while a target that stopped answering stays
+  visible as 0 instead of going stale and disappearing. The mail panels stay empty without
   redmine_expert_helpdesk. Ships in the release archive.
 - **CI, issue templates and Copilot instructions** (`.github/`): the repository now carries the
   same GitHub setup as `redmine_expert_agile` and `redmine_expert_helpdesk` — `ci.yml` runs the

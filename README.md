@@ -110,17 +110,19 @@ Prometheus datasource — nothing else needs configuring.
 
 It shows active users per window, logged-in sessions, accounts by status, open issues, active
 projects, helpdesk and notification mail volume, and a scrape-health row with collection time and
-per-target status. Two variables at the top narrow it down: **Job** (the scrape job of the Redmine
-installation) and **Instance**.
+per-target status. One variable selects the installation: **Job**, the scrape job that serves these
+metrics.
 
-Two details are built into the queries rather than left to the reader:
+Three details are built into the queries rather than left to the reader:
 
 - **Every panel aggregates with `max`, never `sum`.** Each pod reports the same database-wide
   numbers, so summing them multiplies every figure by the number of replicas.
-- **The scrape-health panels follow the Redmine targets only.** `up` exists for every target in a
-  Prometheus — including sidecars that share the Redmine job label — so the instance count is read
-  from `redmine_info`, and *All* on the **Instance** variable expands to the targets that actually
-  serve these metrics.
+- **Job is single-select.** Since the panels reduce with `max`, two jobs selected at once would
+  silently blend two Redmine installations into one number.
+- **The scrape-health panels follow the Redmine targets only, and keep a dead one visible.** `up`
+  exists for every target in a Prometheus — including sidecars that share the Redmine job label —
+  so that panel joins `up` against a 24 h lookback on `redmine_info`. Without the lookback a target
+  that stopped answering would go stale and disappear from the panel instead of dropping to 0.
 
 The mail panels stay empty unless
 [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed;
