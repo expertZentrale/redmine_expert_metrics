@@ -3,7 +3,7 @@
 #   bundle exec rails runner plugins/redmine_expert_metrics/scripts/seed_screenshot_demo.rb
 #
 # UNLIKE the helpdesk and agile seeds this one cannot hide inside a demo project,
-# because the plugin has no per-project :surface => the admin page lists every user
+# because the plugin has no per-project surface: the admin page lists every user
 # active ANYWHERE in the installation, and /metrics reports installation-wide
 # totals. So the numbers on a screenshot are whatever the whole database holds.
 #
@@ -20,7 +20,7 @@
 # scripts/teardown_screenshot_demo.rb deletes exactly those rows and nothing
 # else. Same approach the agile plugin's seed uses.
 #
-# All data is :synthetic => invented names and @example.com addresses.
+# All data is synthetic: invented names and @example.com addresses.
 #
 # Modes:
 #   DEMO_PASSWORD=   password for the capture user (random and printed if unset)
@@ -29,7 +29,7 @@
 require 'json'
 require 'securerandom'
 
-# Deliberately an ordinary-looking :account => it is the one signed in while the
+# Deliberately an ordinary-looking account: it is the one signed in while the
 # screenshot is taken, so it appears in its own "active users" table.
 LOGIN      = 's.weiss'.freeze
 BACKUP_KEY = 'expert_metrics_screenshot_backup'.freeze
@@ -116,7 +116,7 @@ end
 
 password = ENV['DEMO_PASSWORD'].presence || SecureRandom.alphanumeric(20)
 
-# Only ever touch an account this script :created => adopting an existing login
+# Only ever touch an account this script created: adopting an existing login
 # would elevate a real user to admin, reset their password, and delete them on
 # teardown.
 existing = User.find_by(:login => LOGIN)
@@ -170,7 +170,7 @@ PEOPLE = [
   { :first => 'Daniel',  :last => 'Hofmann',    :minutes_ago => 22,  :sessions => 1, :status => :active },
   { :first => 'Elena',   :last => 'Brandt',     :minutes_ago => 31,  :sessions => 1, :status => :active },
   { :first => 'Philipp', :last => 'Neumann',    :minutes_ago => 48,  :sessions => 1, :status => :active },
-  # Logged in today but idle for longer than the widest :window => counts towards
+  # Logged in today but idle for longer than the widest window: counts towards
   # "logins in the last 24 h" and towards sessions, but not towards active users.
   { :first => 'Katrin',  :last => 'Siebert',    :minutes_ago => 190, :sessions => 1, :status => :active },
   { :first => 'Markus',  :last => 'Engel',      :minutes_ago => 420, :sessions => 1, :status => :active },
@@ -280,7 +280,7 @@ say "created #{projects.size} projects, #{Issue.count} issues"
 # Written by the plugin's own Mail observer in normal operation; seeded directly
 # here because nothing is actually sending mail on a screenshots stack.
 if ExpertMetricsCounter.available?
-  # Reset to the recorded baseline :first => increment! on top of a previous run's
+  # Reset to the recorded baseline first: increment! on top of a previous run's
   # numbers would stack them, and the screenshot would drift upwards every time.
   ExpertMetricsCounter.where(:name => ExpertMetricsCounter::NOTIFICATIONS_SENT).delete_all
   Array(counters_before).each do |row|

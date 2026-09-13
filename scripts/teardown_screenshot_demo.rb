@@ -7,7 +7,7 @@
 # screenshot advertises that the numbers are fake. So instead of matching on a
 # name, this reads the ids the seed recorded in the `expert_metrics_screenshot_backup`
 # settings row and deletes exactly those. Without that row it deletes nothing,
-# :deliberately => guessing would risk taking real data with it.
+# deliberately: guessing would risk taking real data with it.
 #
 # The plugin has no settings of its own, so there is nothing to restore.
 
