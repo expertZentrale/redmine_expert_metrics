@@ -3,7 +3,7 @@
 #   bundle exec rails runner plugins/redmine_expert_metrics/scripts/seed_screenshot_demo.rb
 #
 # UNLIKE the helpdesk and agile seeds this one cannot hide inside a demo project,
-# because the plugin has no per-project surface: the admin page lists every user
+# because the plugin has no per-project :surface => the admin page lists every user
 # active ANYWHERE in the installation, and /metrics reports installation-wide
 # totals. So the numbers on a screenshot are whatever the whole database holds.
 #
@@ -20,7 +20,7 @@
 # scripts/teardown_screenshot_demo.rb deletes exactly those rows and nothing
 # else. Same approach the agile plugin's seed uses.
 #
-# All data is synthetic: invented names and @example.com addresses.
+# All data is :synthetic => invented names and @example.com addresses.
 #
 # Modes:
 #   DEMO_PASSWORD=   password for the capture user (random and printed if unset)
@@ -29,7 +29,7 @@
 require 'json'
 require 'securerandom'
 
-# Deliberately an ordinary-looking account: it is the one signed in while the
+# Deliberately an ordinary-looking :account => it is the one signed in while the
 # screenshot is taken, so it appears in its own "active users" table.
 LOGIN      = 's.weiss'.freeze
 BACKUP_KEY = 'expert_metrics_screenshot_backup'.freeze
@@ -44,7 +44,7 @@ def say(msg)
 end
 
 # The ids of everything created, parked in a settings row so teardown can be
-# exact. Setting.new/save(validate: false) because this is not a registered
+# exact. Setting.new/save(:validate => false) because this is not a registered
 # setting and Redmine would refuse it otherwise.
 def raw_setting(name)
   Setting.where(:name => name).pick(:value)
@@ -81,9 +81,9 @@ mine_projects = Array(previous['project_ids'])
 # separately from user_ids, and renaming LOGIN between runs would otherwise make
 # the guard trip on the account this very script created.
 mine = mine_users + [previous['capture_user_id']].compact
-foreign_users = User.where(type: 'User').where.not(id: mine)
-                    .where.not(login: ['admin', LOGIN, '']).count
-foreign_projects = Project.where.not(id: mine_projects).count
+foreign_users = User.where(:type => 'User').where.not(:id => mine)
+                    .where.not(:login => ['admin', LOGIN, '']).count
+foreign_projects = Project.where.not(:id => mine_projects).count
 
 if (foreign_users > 0 || foreign_projects > 0) && ENV['FORCE'] != '1'
   abort <<~MSG
@@ -116,18 +116,18 @@ end
 
 password = ENV['DEMO_PASSWORD'].presence || SecureRandom.alphanumeric(20)
 
-# Only ever touch an account this script created: adopting an existing login
+# Only ever touch an account this script :created => adopting an existing login
 # would elevate a real user to admin, reset their password, and delete them on
 # teardown.
-existing = User.find_by(login: LOGIN)
+existing = User.find_by(:login => LOGIN)
 if existing && existing.id != previous['capture_user_id']
   abort "[seed] A user '#{LOGIN}' already exists and was not created by this script. " \
         "Refusing to take it over."
 end
 
 capture = existing ||
-          User.new(login: LOGIN, firstname: 'Sandra', lastname: 'Weiss',
-                   mail: 'sandra.weiss@example.com')
+          User.new(:login => LOGIN, :firstname => 'Sandra', :lastname => 'Weiss',
+                   :mail => 'sandra.weiss@example.com')
 capture.admin    = true
 capture.language = 'en'
 capture.password = password
@@ -138,13 +138,22 @@ say "capture user #{LOGIN} / #{password}"
 
 # --- wipe anything a previous run left behind --------------------------------
 
-old_users = User.where(id: mine).where.not(id: capture.id)
-Token.where(user_id: old_users.select(:id)).delete_all
+old_users = User.where(:id => mine).where.not(:id => capture.id)
+Token.where(:user_id => old_users.select(:id)).delete_all
 old_users.destroy_all
-Project.where(id: mine_projects).destroy_all
-# Every counter row, empty label included: re-running must not stack the
-# previous run's totals on top of this one's.
-ExpertMetricsCounter.delete_all if ExpertMetricsCounter.available?
+Project.where(:id => mine_projects).destroy_all
+
+# Counters are installation-wide and keyed only by name and label, so there is no
+# "our rows" to delete - wiping the table would take real notification history
+# with it. Record whatever is there before touching it, and restore that on
+# teardown. A previous run's own snapshot is carried forward, so re-running does
+# not record its own numbers as the baseline.
+counters_before = previous['counters_before']
+if counters_before.nil? && ExpertMetricsCounter.available?
+  counters_before = ExpertMetricsCounter.all.map do |row|
+    { 'name' => row.name, 'label' => row.label, 'value' => row.value }
+  end
+end
 say 'cleared previous demo rows'
 
 # --- people ------------------------------------------------------------------
@@ -153,42 +162,42 @@ say 'cleared previous demo rows'
 # page shows and it makes the "last activity" column read top to bottom.
 # minutes_ago is the last request; sessions is how many browsers they hold.
 PEOPLE = [
-  { first: 'Anna',    last: 'Berger',     minutes_ago: 1,   sessions: 2, status: :active },
-  { first: 'Tobias',  last: 'Lindner',    minutes_ago: 3,   sessions: 1, status: :active },
-  { first: 'Miriam',  last: 'Kowalski',   minutes_ago: 4,   sessions: 1, status: :active },
-  { first: 'Jonas',   last: 'Reinhardt',  minutes_ago: 9,   sessions: 1, status: :active },
-  { first: 'Sarah',   last: 'Vogt',       minutes_ago: 12,  sessions: 2, status: :active },
-  { first: 'Daniel',  last: 'Hofmann',    minutes_ago: 22,  sessions: 1, status: :active },
-  { first: 'Elena',   last: 'Brandt',     minutes_ago: 31,  sessions: 1, status: :active },
-  { first: 'Philipp', last: 'Neumann',    minutes_ago: 48,  sessions: 1, status: :active },
-  # Logged in today but idle for longer than the widest window: counts towards
+  { :first => 'Anna',    :last => 'Berger',     :minutes_ago => 1,   :sessions => 2, :status => :active },
+  { :first => 'Tobias',  :last => 'Lindner',    :minutes_ago => 3,   :sessions => 1, :status => :active },
+  { :first => 'Miriam',  :last => 'Kowalski',   :minutes_ago => 4,   :sessions => 1, :status => :active },
+  { :first => 'Jonas',   :last => 'Reinhardt',  :minutes_ago => 9,   :sessions => 1, :status => :active },
+  { :first => 'Sarah',   :last => 'Vogt',       :minutes_ago => 12,  :sessions => 2, :status => :active },
+  { :first => 'Daniel',  :last => 'Hofmann',    :minutes_ago => 22,  :sessions => 1, :status => :active },
+  { :first => 'Elena',   :last => 'Brandt',     :minutes_ago => 31,  :sessions => 1, :status => :active },
+  { :first => 'Philipp', :last => 'Neumann',    :minutes_ago => 48,  :sessions => 1, :status => :active },
+  # Logged in today but idle for longer than the widest :window => counts towards
   # "logins in the last 24 h" and towards sessions, but not towards active users.
-  { first: 'Katrin',  last: 'Siebert',    minutes_ago: 190, sessions: 1, status: :active },
-  { first: 'Markus',  last: 'Engel',      minutes_ago: 420, sessions: 1, status: :active },
+  { :first => 'Katrin',  :last => 'Siebert',    :minutes_ago => 190, :sessions => 1, :status => :active },
+  { :first => 'Markus',  :last => 'Engel',      :minutes_ago => 420, :sessions => 1, :status => :active },
   # No session at all — there to give redmine_users_total something per status.
-  { first: 'Lena',    last: 'Petzold',    minutes_ago: nil, sessions: 0, status: :registered },
-  { first: 'Oliver',  last: 'Krause',     minutes_ago: nil, sessions: 0, status: :locked },
-  { first: 'Nadine',  last: 'Schuster',   minutes_ago: nil, sessions: 0, status: :active },
-  { first: 'Stefan',  last: 'Aumann',     minutes_ago: nil, sessions: 0, status: :active }
+  { :first => 'Lena',    :last => 'Petzold',    :minutes_ago => nil, :sessions => 0, :status => :registered },
+  { :first => 'Oliver',  :last => 'Krause',     :minutes_ago => nil, :sessions => 0, :status => :locked },
+  { :first => 'Nadine',  :last => 'Schuster',   :minutes_ago => nil, :sessions => 0, :status => :active },
+  { :first => 'Stefan',  :last => 'Aumann',     :minutes_ago => nil, :sessions => 0, :status => :active }
 ].freeze
 
 STATUSES = {
-  active:     User::STATUS_ACTIVE,
-  registered: User::STATUS_REGISTERED,
-  locked:     User::STATUS_LOCKED
+  :active     => User::STATUS_ACTIVE,
+  :registered => User::STATUS_REGISTERED,
+  :locked     => User::STATUS_LOCKED
 }.freeze
 
 def backdate!(record, attrs)
-  record.class.where(id: record.id).update_all(attrs)
+  record.class.where(:id => record.id).update_all(attrs)
 end
 
 created = PEOPLE.each_with_index.map do |person, i|
   login = "#{person[:first][0].downcase}.#{person[:last].downcase}"
-  user = User.new(login: login,
-                  firstname: person[:first],
-                  lastname: person[:last],
-                  mail: "#{person[:first].downcase}.#{person[:last].downcase}@example.com",
-                  language: 'en')
+  user = User.new(:login => login,
+                  :firstname => person[:first],
+                  :lastname => person[:last],
+                  :mail => "#{person[:first].downcase}.#{person[:last].downcase}@example.com",
+                  :language => 'en')
   user.status = STATUSES.fetch(person[:status])
   user.password = SecureRandom.alphanumeric(24)
   user.save!
@@ -197,7 +206,7 @@ created = PEOPLE.each_with_index.map do |person, i|
   # "logged in since" reading, so it has to predate the session.
   if person[:minutes_ago]
     login_at = NOW - (person[:minutes_ago] + 45 + i * 7).minutes
-    backdate!(user, last_login_on: login_at)
+    backdate!(user, :last_login_on => login_at)
   end
 
   [user, person]
@@ -219,11 +228,11 @@ created.each do |user, person|
   started   = user.last_login_on || (last_seen - 2.hours)
 
   person[:sessions].times do |n|
-    token = Token.create!(user: user, action: 'session', value: SecureRandom.hex(20))
+    token = Token.create!(:user => user, :action => 'session', :value => SecureRandom.hex(20))
     # A second browser is usually a little staler than the first.
     backdate!(token,
-              created_on: started + (n * 9).minutes,
-              updated_on: last_seen - (n * 4).minutes)
+              :created_on => started + (n * 9).minutes,
+              :updated_on => last_seen - (n * 4).minutes)
     session_rows += 1
   end
 end
@@ -232,35 +241,35 @@ say "created #{session_rows} session tokens"
 # --- projects and issues -----------------------------------------------------
 
 PROJECTS = [
-  { name: 'Customer Support',   issues_open: 34, issues_closed: 186 },
-  { name: 'Warehouse Software', issues_open: 21, issues_closed: 97  },
-  { name: 'Website Relaunch',   issues_open: 12, issues_closed: 41  },
-  { name: 'Internal IT',        issues_open: 9,  issues_closed: 63  }
+  { :name => 'Customer Support',   :issues_open => 34, :issues_closed => 186 },
+  { :name => 'Warehouse Software', :issues_open => 21, :issues_closed => 97  },
+  { :name => 'Website Relaunch',   :issues_open => 12, :issues_closed => 41  },
+  { :name => 'Internal IT',        :issues_open => 9,  :issues_closed => 63  }
 ].freeze
 
-tracker = Tracker.first || Tracker.create!(name: 'Task', default_status: IssueStatus.first)
-open_status   = IssueStatus.where(is_closed: false).order(:position).first
-closed_status = IssueStatus.where(is_closed: true).order(:position).first
+tracker = Tracker.first || Tracker.create!(:name => 'Task', :default_status => IssueStatus.first)
+open_status   = IssueStatus.where(:is_closed => false).order(:position).first
+closed_status = IssueStatus.where(:is_closed => true).order(:position).first
 priority      = IssuePriority.default || IssuePriority.first
 author        = created.first.first
 
 projects = PROJECTS.each_with_index.map do |spec, i|
-  project = Project.create!(name: spec[:name],
-                            identifier: spec[:name].parameterize,
-                            is_public: false)
+  project = Project.create!(:name => spec[:name],
+                            :identifier => spec[:name].parameterize,
+                            :is_public => false)
   project.trackers = [tracker]
   project.save!
 
   [[spec[:issues_open], open_status], [spec[:issues_closed], closed_status]].each do |count, status|
     next if status.nil?
     count.times do |n|
-      issue = Issue.new(project: project, tracker: tracker, author: author,
-                        subject: "#{spec[:name]} item #{n + 1}",
-                        status: status, priority: priority)
-      issue.save!(validate: false)
+      issue = Issue.new(:project => project, :tracker => tracker, :author => author,
+                        :subject => "#{spec[:name]} item #{n + 1}",
+                        :status => status, :priority => priority)
+      issue.save!(:validate => false)
     end
   end
-  backdate!(project, created_on: NOW - (120 - i * 20).days)
+  backdate!(project, :created_on => NOW - (120 - i * 20).days)
   project
 end
 
@@ -271,6 +280,15 @@ say "created #{projects.size} projects, #{Issue.count} issues"
 # Written by the plugin's own Mail observer in normal operation; seeded directly
 # here because nothing is actually sending mail on a screenshots stack.
 if ExpertMetricsCounter.available?
+  # Reset to the recorded baseline :first => increment! on top of a previous run's
+  # numbers would stack them, and the screenshot would drift upwards every time.
+  ExpertMetricsCounter.where(:name => ExpertMetricsCounter::NOTIFICATIONS_SENT).delete_all
+  Array(counters_before).each do |row|
+    next unless row['name'] == ExpertMetricsCounter::NOTIFICATIONS_SENT
+    ExpertMetricsCounter.create!(:name => row['name'], :label => row['label'],
+                                 :value => row['value'], :updated_on => Time.current)
+  end
+
   projects.zip([412, 268, 143, 86]).each do |project, value|
     ExpertMetricsCounter.increment!(ExpertMetricsCounter::NOTIFICATIONS_SENT,
                                     project.identifier, value)
@@ -292,13 +310,13 @@ if RedmineExpertMetrics::Collector.helpdesk_available?
   volumes = { 'in' => [148, 92, 21, 44], 'out' => [131, 80, 17, 39], 'init' => [12, 6, 3, 5] }
   total = 0
   projects.each_with_index do |project, i|
-    issue = Issue.where(project_id: project.id).first
+    issue = Issue.where(:project_id => project.id).first
     next if issue.nil?
     volumes.each do |direction, per_project|
       per_project[i].times do |n|
-        HelpdeskMessage.create!(issue: issue, direction: direction,
-                                subject: "Demo message #{n + 1}",
-                                sent_at: NOW - (n + 1).hours)
+        HelpdeskMessage.create!(:issue => issue, :direction => direction,
+                                :subject => "Demo message #{n + 1}",
+                                :sent_at => NOW - (n + 1).hours)
         total += 1
       end
     end
@@ -310,10 +328,11 @@ end
 
 # --- record what was created --------------------------------------------------
 
-save_backup!('capture_user_id' => capture.id,
-             'user_ids'        => created.map { |user, _| user.id },
-             'project_ids'     => projects.map(&:id),
-             'seeded_at'       => NOW.utc.iso8601)
+save_backup!('capture_user_id'  => capture.id,
+             'user_ids'         => created.map { |user, _| user.id },
+             'project_ids'      => projects.map(&:id),
+             'counters_before'  => counters_before,
+             'seeded_at'        => NOW.utc.iso8601)
 say 'recorded ids in the settings backup row'
 
 # The collector caches its snapshot for 15 s; drop it so the very next page load

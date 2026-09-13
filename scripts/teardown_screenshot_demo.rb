@@ -7,7 +7,7 @@
 # screenshot advertises that the numbers are fake. So instead of matching on a
 # name, this reads the ids the seed recorded in the `expert_metrics_screenshot_backup`
 # settings row and deletes exactly those. Without that row it deletes nothing,
-# deliberately: guessing would risk taking real data with it.
+# :deliberately => guessing would risk taking real data with it.
 #
 # The plugin has no settings of its own, so there is nothing to restore.
 
@@ -32,29 +32,38 @@ project_ids = Array(backup['project_ids'])
 capture_id  = backup['capture_user_id']
 
 if RedmineExpertMetrics::Collector.helpdesk_available?
-  messages = HelpdeskMessage.joins(:issue).where(issues: { project_id: project_ids })
+  messages = HelpdeskMessage.joins(:issue).where(:issues => { :project_id => project_ids })
   say "removing #{messages.count} helpdesk message(s)"
   messages.delete_all
 end
 
-projects = Project.where(id: project_ids)
+projects = Project.where(:id => project_ids)
 say "removing #{projects.count} project(s) and " \
-    "#{Issue.where(project_id: project_ids).count} issue(s)"
+    "#{Issue.where(:project_id => project_ids).count} issue(s)"
 projects.destroy_all
 
-users = User.where(id: user_ids + [capture_id].compact)
+users = User.where(:id => user_ids + [capture_id].compact)
 say "removing #{users.count} user(s) and " \
-    "#{Token.where(user_id: users.select(:id)).count} session token(s)"
-Token.where(user_id: users.select(:id)).delete_all
+    "#{Token.where(:user_id => users.select(:id)).count} session token(s)"
+Token.where(:user_id => users.select(:id)).delete_all
 users.destroy_all
 
+# Counters are installation-wide and keyed only by name and label, so deleting
+# the table would take real notification history with it. Put back exactly what
+# the seed recorded before it touched anything.
 if ExpertMetricsCounter.available?
-  say "removing #{ExpertMetricsCounter.count} counter row(s)"
-  ExpertMetricsCounter.delete_all
+  baseline = Array(backup['counters_before'])
+  ExpertMetricsCounter.where(:name => ExpertMetricsCounter::NOTIFICATIONS_SENT).delete_all
+  baseline.each do |row|
+    next unless row['name'] == ExpertMetricsCounter::NOTIFICATIONS_SENT
+    ExpertMetricsCounter.create!(:name => row['name'], :label => row['label'],
+                                 :value => row['value'], :updated_on => Time.current)
+  end
+  say "restored #{baseline.size} counter row(s) to their pre-seed values"
 end
 
 Setting.where(:name => BACKUP_KEY).delete_all
 Rails.cache.delete(RedmineExpertMetrics::Collector::CACHE_KEY)
 
-say "done. users=#{User.where(type: 'User').count} " \
+say "done. users=#{User.where(:type => 'User').count} " \
     "projects=#{Project.count} issues=#{Issue.count}"
