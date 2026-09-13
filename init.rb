@@ -17,7 +17,7 @@ Redmine::Plugin.register :redmine_expert_metrics do
   name 'Redmine expert Metrics'
   author 'Dennis Buehring'
   description 'Shows who is currently working in Redmine and exposes that (plus a few basic totals) as Prometheus metrics. Works on Redmine 5.1 - 7.x.'
-  version '1.1.1'
+  version '1.2.0'
   url 'https://github.com/expertZentrale/redmine_expert_metrics'
   requires_redmine :version_or_higher => '5.0'
 

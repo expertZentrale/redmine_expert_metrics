@@ -4,7 +4,7 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
-## [Unreleased]
+## [1.2.0] - 2026-09-13
 
 ### Added
 - **Ready-to-import Grafana dashboard** (`contrib/grafana/redmine-expert-metrics.json`): activity,

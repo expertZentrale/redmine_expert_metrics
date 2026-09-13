@@ -4,7 +4,7 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
-## [Unreleased]
+## [1.2.0] - 2026-09-13
 
 ### Hinzugefügt
 - **Fertiges Grafana-Dashboard zum Import** (`contrib/grafana/redmine-expert-metrics.json`):
