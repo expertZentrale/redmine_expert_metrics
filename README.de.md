@@ -6,6 +6,26 @@ Zeigt, wer **gerade jetzt** in Redmine arbeitet, und stellt das zusammen mit ein
 Grundzahlen als Prometheus-Metriken bereit. Gebaut für die Frage „Kann ich eine Instanz für
 Wartungsarbeiten herunterfahren?“. Läuft auf **Redmine 5.1, 6.0, 6.1 und 7.0**.
 
+
+## Screenshots
+
+Alle Screenshots zeigen eine synthetische Installation, erzeugt von
+`scripts/seed_screenshot_demo.rb` gegen eine leere Datenbank.
+
+![Administration, expert Metrics: aktive Benutzer über 5, 15 und 60 Minuten, offene Sitzungen
+und Anmeldungen der letzten 24 Stunden, darunter eine Tabelle aller Benutzer mit einer Anfrage
+in der letzten Stunde mit Mitgliedsname, Name, letzter Aktivität, angemeldet seit und Anzahl
+Sitzungen](docs/screenshots/de/01-active-users.png)
+
+### Grafana-Dashboard
+
+`contrib/grafana/redmine-expert-metrics.json`, über eine Arbeitswoche.
+
+![Das Dashboard über eine Arbeitswoche: aktive Benutzer in den drei Zeitfenstern, offene
+Sitzungen, Konten nach Status, offene und geschlossene Tickets sowie Kunden- und
+Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
+
+
 ## Was es macht
 
 - **Administration → expert Metrics**: alle Benutzer mit mindestens einer Anfrage in den

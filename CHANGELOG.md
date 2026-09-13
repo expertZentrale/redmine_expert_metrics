@@ -17,6 +17,13 @@
   that sidecars sharing the Redmine job label stay out while a target that stopped answering stays
   visible as 0 instead of going stale and disappearing. The mail panels stay empty without
   redmine_expert_helpdesk. Ships in the release archive.
+- **`scripts/seed_screenshot_demo.rb` and its teardown** build a synthetic installation for the
+  README screenshots: fourteen users with backdated session tokens spread across the 5/15/60
+  minute windows, four projects, issues, notification counters and helpdesk mail volumes. It
+  refuses to run against a database holding rows it did not create — the admin page and
+  `/metrics` report installation-wide numbers, so seeding on top of real data would publish it.
+- **Screenshots** in `docs/screenshots/{en,de}/`, the admin page and the Grafana dashboard, and a
+  *Screenshots* section in both READMEs.
 - **CI, issue templates and Copilot instructions** (`.github/`): the repository now carries the
   same GitHub setup as `redmine_expert_agile` and `redmine_expert_helpdesk` — `ci.yml` runs the
   MiniTest suite against Redmine 5.1/6.0/6.1/7.0-stable on a fresh MariaDB, `docker-image.yml`
@@ -26,6 +33,10 @@
   and feature forms. `.github/copilot-instructions.md` mirrors `CLAUDE.md`; both grew the
   conventions that were only implicit so far (Ruby 2.7 syntax, no user names in the exposition,
   migration numbering) plus the CI and release sections.
+
+### Fixed
+- **`release.yml` accepted malformed tags.** The semver check allowed the optional suffix to
+  begin with `.`, so `v1.2.3.4` validated, and accepted empty identifiers such as `1.2.3-a..b`.
 
 ## [1.1.1] - 2026-09-09
 

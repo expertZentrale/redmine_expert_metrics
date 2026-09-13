@@ -6,6 +6,26 @@ See who is working in Redmine **right now** and expose that, plus a few basic to
 Prometheus metrics. Built for the question "can I take an instance down for maintenance?".
 Works on **Redmine 5.1, 6.0, 6.1 and 7.0**.
 
+
+## Screenshots
+
+All screenshots show a synthetic installation, built by
+`scripts/seed_screenshot_demo.rb` against an empty database.
+
+![Administration, expert Metrics: active users over 5, 15 and 60 minutes, live sessions and
+logins in the last 24 hours, above a table of everyone with a request in the last hour with
+login, name, last activity, logged in since and how many sessions they
+hold](docs/screenshots/en/01-active-users.png)
+
+### Grafana dashboard
+
+`contrib/grafana/redmine-expert-metrics.json`, over a working week.
+
+![The dashboard over a working week: active users across the three windows, logged-in sessions,
+accounts by status, open and closed issues, and customer versus notification mail per
+hour](docs/screenshots/en/04-grafana.png)
+
+
 ## What it does
 
 - **Administration → expert Metrics**: every user with at least one request in the last 60
