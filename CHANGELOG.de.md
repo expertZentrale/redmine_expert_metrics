@@ -7,6 +7,21 @@
 ## [Unreleased]
 
 ### Hinzugefügt
+- **`scripts/seed_screenshot_demo.rb` und das zugehörige Teardown** erzeugen eine synthetische
+  Installation für die README-Screenshots: vierzehn Benutzer mit rückdatierten Sitzungs-Token
+  über die Fenster 5/15/60 Minuten, vier Projekte, Tickets, Benachrichtigungszähler und
+  Helpdesk-Mailvolumen. Das Skript verweigert den Dienst gegen eine Datenbank mit Daten, die es
+  nicht selbst angelegt hat — Administrationsseite und `/metrics` melden installationsweite
+  Zahlen, ein Seed auf echten Daten würde sie veröffentlichen.
+- **Screenshots** unter `docs/screenshots/{en,de}/` sowie ein Abschnitt *Screenshots* in beiden
+  READMEs.
+
+### Behoben
+- **`release.yml` akzeptierte fehlerhafte Tags.** Die Semver-Prüfung erlaubte dem optionalen
+  Suffix, mit `.` zu beginnen, womit `v1.2.3.4` als gültig durchging, und ließ leere Bezeichner
+  wie `1.2.3-a..b` zu.
+
+### Hinzugefügt
 - **CI, Issue-Vorlagen und Copilot-Anweisungen** (`.github/`): das Repository hat jetzt dieselbe
   GitHub-Einrichtung wie `redmine_expert_agile` und `redmine_expert_helpdesk` — `ci.yml` führt die
   MiniTest-Suite gegen Redmine 5.1/6.0/6.1/7.0-stable auf einer frischen MariaDB aus,
