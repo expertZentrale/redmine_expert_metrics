@@ -17,6 +17,15 @@ logins in the last 24 hours, above a table of everyone with a request in the las
 login, name, last activity, logged in since and how many sessions they
 hold](docs/screenshots/en/01-active-users.png)
 
+### Grafana dashboard
+
+`contrib/grafana/redmine-expert-metrics.json`, over a working week.
+
+![The dashboard over a working week: active users across the three windows, logged-in sessions,
+accounts by status, open and closed issues, and customer versus notification mail per
+hour](docs/screenshots/en/04-grafana.png)
+
+
 ## What it does
 
 - **Administration → expert Metrics**: every user with at least one request in the last 60
@@ -111,6 +120,33 @@ Alternatively, download the release archive from the
 it into `plugins/`.
 
 No settings, no permissions — the plugin is active as soon as it loads.
+
+## Grafana dashboard
+
+A ready-made dashboard lives in
+[`contrib/grafana/redmine-expert-metrics.json`](contrib/grafana/redmine-expert-metrics.json).
+Import it under *Dashboards → New → Import*, upload the file or paste its contents, and pick your
+Prometheus datasource — nothing else needs configuring.
+
+It shows active users per window, logged-in sessions, accounts by status, open issues, active
+projects, helpdesk and notification mail volume, and a scrape-health row with collection time and
+per-target status. One variable selects the installation: **Job**, the scrape job that serves these
+metrics.
+
+Three details are built into the queries rather than left to the reader:
+
+- **Every panel aggregates with `max`, never `sum`.** Each pod reports the same database-wide
+  numbers, so summing them multiplies every figure by the number of replicas.
+- **Job is single-select.** Since the panels reduce with `max`, two jobs selected at once would
+  silently blend two Redmine installations into one number.
+- **The scrape-health panels follow the Redmine targets only, and keep a dead one visible.** `up`
+  exists for every target in a Prometheus — including sidecars that share the Redmine job label —
+  so that panel joins `up` against a 24 h lookback on `redmine_info`. Without the lookback a target
+  that stopped answering would go stale and disappear from the panel instead of dropping to 0.
+
+The mail panels stay empty unless
+[redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed;
+everything else works with this plugin alone.
 
 ## Usage before maintenance
 

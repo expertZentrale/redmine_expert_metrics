@@ -7,21 +7,25 @@
 ## [Unreleased]
 
 ### Hinzugefügt
+- **Fertiges Grafana-Dashboard zum Import** (`contrib/grafana/redmine-expert-metrics.json`):
+  Aktivität, Konten, Tickets und Mailaufkommen der Installation sowie eine Zeile zur
+  Scrape-Gesundheit. Importieren, Prometheus-Datenquelle auswählen — die Panels hängen an einer
+  Datenquellen-Variable, es muss nichts nachbearbeitet werden. Zwei Feinheiten stecken in den
+  Abfragen: Jedes Panel reduziert mit `max` statt `sum`, weil jeder Pod dieselben datenbankweiten
+  Zahlen meldet; die Job-Variable ist einfach auswählbar, weil zwei per `max` reduzierte Jobs zwei
+  Installationen zu einer Zahl verschmelzen würden; und die Panels zur Scrape-Gesundheit verknüpfen
+  `up` mit einem 24-h-Rückblick auf `redmine_info`, damit Sidecars mit demselben Job-Label
+  draußen bleiben und ein Ziel, das nicht mehr antwortet, als 0 sichtbar bleibt, statt zu
+  verschwinden. Die
+  Mail-Panels bleiben ohne redmine_expert_helpdesk leer. Liegt im Release-Archiv bei.
 - **`scripts/seed_screenshot_demo.rb` und das zugehörige Teardown** erzeugen eine synthetische
   Installation für die README-Screenshots: vierzehn Benutzer mit rückdatierten Sitzungs-Token
   über die Fenster 5/15/60 Minuten, vier Projekte, Tickets, Benachrichtigungszähler und
   Helpdesk-Mailvolumen. Das Skript verweigert den Dienst gegen eine Datenbank mit Daten, die es
   nicht selbst angelegt hat — Administrationsseite und `/metrics` melden installationsweite
   Zahlen, ein Seed auf echten Daten würde sie veröffentlichen.
-- **Screenshots** unter `docs/screenshots/{en,de}/` sowie ein Abschnitt *Screenshots* in beiden
-  READMEs.
-
-### Behoben
-- **`release.yml` akzeptierte fehlerhafte Tags.** Die Semver-Prüfung erlaubte dem optionalen
-  Suffix, mit `.` zu beginnen, womit `v1.2.3.4` als gültig durchging, und ließ leere Bezeichner
-  wie `1.2.3-a..b` zu.
-
-### Hinzugefügt
+- **Screenshots** unter `docs/screenshots/{en,de}/` — Administrationsseite und Grafana-Dashboard —
+  sowie ein Abschnitt *Screenshots* in beiden READMEs.
 - **CI, Issue-Vorlagen und Copilot-Anweisungen** (`.github/`): das Repository hat jetzt dieselbe
   GitHub-Einrichtung wie `redmine_expert_agile` und `redmine_expert_helpdesk` — `ci.yml` führt die
   MiniTest-Suite gegen Redmine 5.1/6.0/6.1/7.0-stable auf einer frischen MariaDB aus,
@@ -31,6 +35,11 @@
   Formulare für Fehler und Wünsche. `.github/copilot-instructions.md` spiegelt `CLAUDE.md`; beide
   haben die bisher nur implizierten Konventionen bekommen (Ruby-2.7-Syntax, keine Benutzernamen in
   der Exposition, Migrationsnummerierung) sowie die Abschnitte zu CI und Releases.
+
+### Behoben
+- **`release.yml` akzeptierte fehlerhafte Tags.** Die Semver-Prüfung erlaubte dem optionalen
+  Suffix, mit `.` zu beginnen, womit `v1.2.3.4` als gültig durchging, und ließ leere Bezeichner
+  wie `1.2.3-a..b` zu.
 
 ## [1.1.1] - 2026-09-09
 

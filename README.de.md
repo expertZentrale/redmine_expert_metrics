@@ -17,6 +17,15 @@ und Anmeldungen der letzten 24 Stunden, darunter eine Tabelle aller Benutzer mit
 in der letzten Stunde mit Mitgliedsname, Name, letzter Aktivität, angemeldet seit und Anzahl
 Sitzungen](docs/screenshots/de/01-active-users.png)
 
+### Grafana-Dashboard
+
+`contrib/grafana/redmine-expert-metrics.json`, über eine Arbeitswoche.
+
+![Das Dashboard über eine Arbeitswoche: aktive Benutzer in den drei Zeitfenstern, offene
+Sitzungen, Konten nach Status, offene und geschlossene Tickets sowie Kunden- und
+Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
+
+
 ## Was es macht
 
 - **Administration → expert Metrics**: alle Benutzer mit mindestens einer Anfrage in den
@@ -112,6 +121,34 @@ Alternativ das Release-Archiv von der
 und nach `plugins/` entpacken.
 
 Keine Einstellungen, keine Berechtigungen — das Plugin ist aktiv, sobald es geladen wird.
+
+## Grafana-Dashboard
+
+Ein fertiges Dashboard liegt in
+[`contrib/grafana/redmine-expert-metrics.json`](contrib/grafana/redmine-expert-metrics.json).
+Unter *Dashboards → New → Import* die Datei hochladen oder ihren Inhalt einfügen und die eigene
+Prometheus-Datenquelle auswählen — mehr ist nicht zu konfigurieren.
+
+Es zeigt aktive Benutzer je Zeitfenster, angemeldete Sitzungen, Konten nach Status, offene Tickets,
+aktive Projekte, das Mailaufkommen von Helpdesk und Benachrichtigungen sowie eine Zeile zur
+Scrape-Gesundheit mit Sammeldauer und Status je Ziel. Eine Variable wählt die Installation: **Job**,
+der Scrape-Job, der diese Metriken ausliefert.
+
+Drei Feinheiten stecken in den Abfragen selbst, statt sie dem Leser zu überlassen:
+
+- **Jedes Panel aggregiert mit `max`, nie mit `sum`.** Jeder Pod meldet dieselben
+  datenbankweiten Zahlen; eine Summe vervielfacht daher jeden Wert mit der Anzahl der Replicas.
+- **Job ist einfach auswählbar.** Da die Panels mit `max` reduzieren, würden zwei gleichzeitig
+  gewählte Jobs zwei Redmine-Installationen unbemerkt zu einer Zahl verschmelzen.
+- **Die Panels zur Scrape-Gesundheit folgen nur den Redmine-Zielen und behalten ein totes Ziel im
+  Blick.** `up` existiert für jedes Ziel einer Prometheus-Instanz — auch für Sidecars, die sich das
+  Job-Label mit Redmine teilen. Das Panel verknüpft `up` deshalb mit einem 24-h-Rückblick auf
+  `redmine_info`. Ohne diesen Rückblick würde ein Ziel, das nicht mehr antwortet, veralten und aus
+  dem Panel verschwinden, statt auf 0 zu fallen.
+
+Die Mail-Panels bleiben leer, solange
+[redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) nicht
+installiert ist; alles andere funktioniert mit diesem Plugin allein.
 
 ## Nutzung vor Wartungsarbeiten
 
