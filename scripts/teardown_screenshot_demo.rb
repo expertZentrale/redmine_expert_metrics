@@ -52,7 +52,18 @@ users.destroy_all
 # the table would take real notification history with it. Put back exactly what
 # the seed recorded before it touched anything.
 if ExpertMetricsCounter.available?
-  baseline = Array(backup['counters_before'])
+  # nil means the seed never saw this table - it was migrated in afterwards - so
+  # there is no baseline to restore and nothing here is ours. Deleting on a nil
+  # would wipe counters this demo never touched.
+  if backup['counters_before'].nil?
+    say 'no counter baseline recorded (table appeared after seeding) - leaving counters alone'
+    baseline = nil
+  else
+    baseline = Array(backup['counters_before'])
+  end
+end
+
+if ExpertMetricsCounter.available? && !baseline.nil?
   ExpertMetricsCounter.where(:name => ExpertMetricsCounter::NOTIFICATIONS_SENT).delete_all
   baseline.each do |row|
     next unless row['name'] == ExpertMetricsCounter::NOTIFICATIONS_SENT

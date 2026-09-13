@@ -141,6 +141,10 @@ say "capture user #{LOGIN} / #{password}"
 old_users = User.where(:id => mine).where.not(:id => capture.id)
 Token.where(:user_id => old_users.select(:id)).delete_all
 old_users.destroy_all
+# The capture account survives a re-run, but its session tokens must not:
+# every capture login adds one, and redmine_sessions_total would climb a little
+# further on each pass instead of resetting to what this run seeded.
+Token.where(:user_id => capture.id, :action => 'session').delete_all
 Project.where(:id => mine_projects).destroy_all
 
 # Counters are installation-wide and keyed only by name and label, so there is no
@@ -148,6 +152,9 @@ Project.where(:id => mine_projects).destroy_all
 # with it. Record whatever is there before touching it, and restore that on
 # teardown. A previous run's own snapshot is carried forward, so re-running does
 # not record its own numbers as the baseline.
+# An empty array and "we never looked" are different things: if the counter
+# table was missing at seed time, teardown must not read a nil baseline as
+# "there was nothing here" and delete every counter the migration later brought.
 counters_before = previous['counters_before']
 if counters_before.nil? && ExpertMetricsCounter.available?
   counters_before = ExpertMetricsCounter.all.map do |row|
