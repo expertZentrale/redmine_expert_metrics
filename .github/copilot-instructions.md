@@ -77,3 +77,7 @@ Releases are tag driven: bump `version` in `init.rb` (single source of truth), a
 `git tag vX.Y.Z && git push origin vX.Y.Z`. `release.yml` verifies that the tag matches the
 `init.rb` version, builds the notes from the matching CHANGELOG section and attaches the
 `.zip` / `.tar.gz` archives to the GitHub release.
+A final step asks the plugin website (`expertZentrale/redmine-plugins`) to rebuild via a
+`plugin-released` dispatch, using the `SITE_DISPATCH_TOKEN` secret (fine-grained token, Contents
+read/write on that repo only); without it the site catches up on its weekly cron, and the step
+never fails a release.
