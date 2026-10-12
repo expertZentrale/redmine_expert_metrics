@@ -171,6 +171,19 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
     assert_equal RedmineExpertMetrics::Collector.api_key_holders.size, details[:key_holders]
   end
 
+  def test_regenerated_key_without_use_counts_as_unused
+    ExpertMetricsApiUsage.record!(attrs, Time.now - 2.days)
+    token = Token.find_by(:user_id => 2, :action => 'api') || Token.create!(:user_id => 2, :action => 'api')
+    token.update_columns(:created_on => Time.now - 1.day)
+
+    details = RedmineExpertMetrics::Collector.api_usage_details(7)
+    assert_includes details[:unused_keys].map { |row| row[:user].id }, 2
+
+    ExpertMetricsApiUsage.record!(attrs)
+    details = RedmineExpertMetrics::Collector.api_usage_details(7)
+    assert_not_includes details[:unused_keys].map { |row| row[:user].id }, 2
+  end
+
   private
 
   def with_memory_cache

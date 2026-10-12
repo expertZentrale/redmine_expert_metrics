@@ -174,8 +174,13 @@ module RedmineExpertMetrics
       end.compact.sort_by { |row| -row[:last_used].to_f }
 
       # Password and OAuth requests do not use the API key, so only key/basic
-      # traffic takes a holder off the "unused" list.
-      used = scope.where(:auth_method => KEY_AUTH_METHODS).distinct.pluck(:user_id)
+      # traffic takes a holder off the "unused" list - and only traffic after the
+      # current key was created: a regenerated key inherits no use of the old one.
+      key_use = scope.where(:auth_method => KEY_AUTH_METHODS).group(:user_id).maximum(:last_at)
+      used = key_holders.select do |user_id, holder|
+        last = key_use[user_id]
+        last && (holder[:key_created_on].nil? || last >= holder[:key_created_on])
+      end.keys
       { :users => details, :unused_keys => key_holders.except(*used).values,
         :key_holders => key_holders.size }
     end
