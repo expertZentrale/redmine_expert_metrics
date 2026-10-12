@@ -1,0 +1,6 @@
+<p>
+  <%= hidden_field_tag 'settings[api_usage_enabled]', '0', :id => nil %>
+  <label for="settings_api_usage_enabled"><%= l(:label_expert_metrics_api_usage_enabled) %></label>
+  <%= check_box_tag 'settings[api_usage_enabled]', '1', settings['api_usage_enabled'].to_s == '1' %>
+  <em class="info"><%= l(:text_expert_metrics_api_usage_enabled) %></em>
+</p>

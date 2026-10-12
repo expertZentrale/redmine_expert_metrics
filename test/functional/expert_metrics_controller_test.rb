@@ -9,6 +9,13 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     Rails.cache.delete(RedmineExpertMetrics::Collector::CACHE_KEY)
     Token.where(:action => 'session').delete_all
     ExpertMetricsCounter.delete_all
+    ExpertMetricsApiUsage.delete_all
+    # Recording is opt-in; these tests exercise it switched on.
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '1' }
+  end
+
+  def teardown
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
   end
 
   # --- /metrics -----------------------------------------------------------
@@ -148,7 +155,82 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     assert_response :forbidden
   end
 
+  # --- /admin/api_usage --------------------------------------------------
+
+  def test_api_usage_requires_admin
+    @request.session[:user_id] = 2
+    get :api_usage
+    assert_response :forbidden
+  end
+
+  def test_api_usage_html_lists_users_and_unused_keys
+    User.find(3).api_key
+    record_api_use(2, 'GET', 'python-requests/2.32')
+    record_api_use(2, 'DELETE', 'python-requests/2.32', 'password')
+    @request.session[:user_id] = 1
+
+    get :api_usage
+    assert_response :success
+    assert_select 'table.expert-metrics-api-usage tbody tr', 1
+    assert_select 'table.expert-metrics-api-usage td.username a', :text => 'jsmith'
+    assert_select 'table.expert-metrics-api-usage td.clients code', :text => 'python-requests/2.32'
+    assert_select 'table.expert-metrics-api-usage .expert-metrics-password'
+    assert_select 'table.expert-metrics-unused-keys td.username a', :text => 'dlopper'
+  end
+
+  def test_api_usage_page_says_when_recording_is_off
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
+    @request.session[:user_id] = 1
+    get :api_usage
+    assert_response :success
+    assert_select 'p.warning a[href=?]', '/settings/plugin/redmine_expert_metrics'
+  end
+
+  def test_plugin_settings_page_renders_the_switch
+    @request.session[:user_id] = 1
+    @controller = SettingsController.new
+    get :plugin, :params => { :id => 'redmine_expert_metrics' }
+    assert_response :success
+    assert_select 'input[type=checkbox][name=?][checked]', 'settings[api_usage_enabled]'
+    assert_select '#settings_api_usage_enabled', 1
+  end
+
+  def test_api_usage_falls_back_to_default_period
+    @request.session[:user_id] = 1
+    get :api_usage, :params => { :days => '12345' }
+    assert_response :success
+    assert_select 'p.expert-metrics-api-days strong', :text => '7 days'
+  end
+
+  def test_api_usage_json_via_admin_api_key
+    record_api_use(2, 'POST', 'n8n')
+
+    with_settings :rest_api_enabled => '1' do
+      get :api_usage, :params => { :format => 'json', :days => '30', :key => User.find(1).api_key }
+    end
+    assert_response :success
+    json = ActiveSupport::JSON.decode(response.body)
+    assert_equal 30, json['days']
+    assert_equal 90, json['retention_days']
+    jsmith = json['users'].detect { |u| u['login'] == 'jsmith' }
+    assert_equal 1, jsmith['writes']
+    assert_equal({ 'n8n' => 1 }, jsmith['clients'])
+    assert_match(/\A\d{4}-\d{2}-\d{2}T/, jsmith['last_used'])
+  end
+
+  def test_api_usage_json_denies_non_admin_api_key
+    with_settings :rest_api_enabled => '1' do
+      get :api_usage, :params => { :format => 'json', :key => User.find(2).api_key }
+    end
+    assert_response :forbidden
+  end
+
   private
+
+  def record_api_use(user_id, verb, user_agent, auth = 'key')
+    ExpertMetricsApiUsage.record!(:user_id => user_id, :http_method => verb, :auth_method => auth,
+                                  :user_agent => user_agent, :ip => '10.1.2.3', :path => '/issues.json')
+  end
 
   def session_token(user_id, last_activity)
     token = Token.create!(:user_id => user_id, :action => 'session')

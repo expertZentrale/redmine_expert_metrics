@@ -5,6 +5,7 @@
 
 <div class="contextual">
   <%= link_to l(:label_expert_metrics_refresh), expert_metrics_active_users_path, :class => 'icon icon-reload' %>
+  <%= link_to l(:label_expert_metrics_api_usage), expert_metrics_api_usage_path, :class => 'icon icon-server-authentication' %>
   <%= link_to 'JSON', expert_metrics_active_users_path(:format => 'json') %>
   <%= link_to l(:label_expert_metrics_prometheus), expert_metrics_prometheus_path %>
 </div>

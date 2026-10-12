@@ -1632,6 +1632,489 @@
       "pluginVersion": "11.0.0"
     },
     {
+      "id": 105,
+      "type": "row",
+      "title": "REST API",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 46
+      },
+      "panels": []
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "API users (today)",
+      "description": "Empty unless *Record API usage* is switched on in the plugin settings.\n\nDistinct users with at least one request authenticated by API credentials (key, HTTP Basic, OAuth) today. Who exactly is listed on the plugin's admin page (Administration » expert Metrics » API usage).\n\nEvery Redmine pod reports the same database-wide numbers, so this panel aggregates with `max`, never `sum`.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "showPercentChange": false,
+        "wideLayout": true,
+        "percentChangeColorMode": "standard"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max(redmine_api_users{window=\"1d\", job=~\"$job\"})",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "API users (7 days)",
+      "description": "Distinct users with API requests in the last 7 calendar days, today included.\n\nEvery Redmine pod reports the same database-wide numbers, so this panel aggregates with `max`, never `sum`.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "showPercentChange": false,
+        "wideLayout": true,
+        "percentChangeColorMode": "standard"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max(redmine_api_users{window=\"7d\", job=~\"$job\"})",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "API users (30 days)",
+      "description": "Distinct users with API requests in the last 30 calendar days, today included.\n\nEvery Redmine pod reports the same database-wide numbers, so this panel aggregates with `max`, never `sum`.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "showPercentChange": false,
+        "wideLayout": true,
+        "percentChangeColorMode": "standard"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max(redmine_api_users{window=\"30d\", job=~\"$job\"})",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "Users with an API key",
+      "description": "Users holding an API key. A key carries the full permissions of its owner.\n\nEvery Redmine pod reports the same database-wide numbers, so this panel aggregates with `max`, never `sum`.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "showPercentChange": false,
+        "wideLayout": true,
+        "percentChangeColorMode": "standard"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max(redmine_api_keys_total{job=~\"$job\"})",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "API requests per hour by method",
+      "description": "Requests authenticated by API credentials, by HTTP method. POST, PUT, PATCH and DELETE change data.\n\nCumulative counter: the rate is taken per scrape target first, deduplicated across pods with `max` per method and auth, and only then summed, so a pod that starts mid-range cannot distort the result.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 51
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (method) (max by (method, auth) (rate(redmine_api_requests_total{job=~\"$job\"}[$__rate_interval]))) * 3600",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{method}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 26,
+      "type": "timeseries",
+      "title": "API requests per hour by authentication",
+      "description": "key = X-Redmine-API-Key header or key parameter, basic = API key as HTTP Basic user name, password = login and password via HTTP Basic (scripts storing a password), oauth = OAuth token.\n\nCumulative counter: the rate is taken per scrape target first, deduplicated across pods with `max` per method and auth, and only then summed, so a pod that starts mid-range cannot distort the result.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 51
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (auth) (max by (method, auth) (rate(redmine_api_requests_total{job=~\"$job\"}[$__rate_interval]))) * 3600",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{auth}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
       "id": 104,
       "type": "row",
       "title": "About these metrics",
@@ -1640,7 +2123,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 59
       },
       "panels": [
         {
@@ -1655,7 +2138,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 47
+            "y": 60
           },
           "options": {
             "mode": "markdown",
@@ -1664,7 +2147,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "## Reading these numbers\n\n**Every pod reports the same figures.** The plugin queries the Redmine database, so each replica answers `/metrics` with identical, installation-wide values. Every panel here therefore aggregates with `max`, never `sum` — `sum` would multiply everything by the number of pods.\n\n**\"Active\" means a browser request.** It comes from Redmine's own session tokens, whose `updated_on` core bumps on every request (at most once a minute). API-key calls and the mail fetcher create no session token and are invisible here — this is \"who would notice a restart\", not \"what load is the box under\".\n\n**Sessions outnumber active users.** A session token stays valid until it expires, so somebody who logged in this morning still counts as a session long after they stopped clicking.\n\n**The mail metrics are counters.** Use `rate()` or `increase()`, as the panels above do. `redmine_helpdesk_mails_total` only exists when [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed; those panels stay empty otherwise. A notification with an empty `project` label is an account or security mail.\n\nMetric reference: [redmine_expert_metrics README](https://github.com/expertZentrale/redmine_expert_metrics#readme)."
+            "content": "## Reading these numbers\n\n**Every pod reports the same figures.** The plugin queries the Redmine database, so each replica answers `/metrics` with identical, installation-wide values. Every panel here therefore aggregates with `max`, never `sum` — `sum` would multiply everything by the number of pods.\n\n**\"Active\" means a browser request.** It comes from Redmine's own session tokens, whose `updated_on` core bumps on every request (at most once a minute). API-key calls and the mail fetcher create no session token and do not count — this is \"who would notice a restart\", not \"what load is the box under\". API calls have their own row.\n\n**Sessions outnumber active users.** A session token stays valid until it expires, so somebody who logged in this morning still counts as a session long after they stopped clicking.\n\n**REST API.** Only while *Record API usage* is switched on in the plugin settings (off by default) — otherwise this row stays empty. Every request authenticated by API credentials is then counted in `redmine_api_requests_total` by `method` and `auth` (`key`, `basic` = API key as Basic user, `password` = login and password via HTTP Basic, `oauth`). `redmine_api_users` counts distinct users per calendar-day window. *Which* users and scripts is on the plugin's admin page (Administration » expert Metrics » API usage) — never in Prometheus.\n\n**The mail metrics are counters.** Use `rate()` or `increase()`, as the panels above do. `redmine_helpdesk_mails_total` only exists when [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed; those panels stay empty otherwise. A notification with an empty `project` label is an account or security mail.\n\nMetric reference: [redmine_expert_metrics README](https://github.com/expertZentrale/redmine_expert_metrics#readme)."
           },
           "transparent": false,
           "pluginVersion": "11.0.0"

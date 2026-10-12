@@ -5,9 +5,11 @@ different tools — **keep them in sync when either changes.**
 
 ## Overview
 
-Small Redmine plugin: "who is active right now" as an admin page + JSON, aggregate
-numbers and mail counters as Prometheus metrics on `/metrics`. One migration (counter
-table), no settings, no permissions.
+Small Redmine plugin: "who is active right now" and "who uses the REST API" as admin pages
++ JSON, aggregate numbers and mail/API counters as Prometheus metrics on `/metrics`. Two
+migrations (counter table, API usage table), no permissions, one setting: `api_usage_enabled`
+(off by default) — while off, `ApiUsagePatch` returns before any query and `Collector.collect`
+leaves `api_*` nil, so `/metrics` omits those series.
 
 This directory lives inside the parent `redmine-expert` deployment repo (`../../`). It is
 **not** a Redmine checkout — Redmine only exists inside the Docker image. Run everything
@@ -22,13 +24,23 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
 - `lib/redmine_expert_metrics/exposition.rb` – Prometheus text rendering. Aggregates only,
   never user names.
 - `app/controllers/expert_metrics_controller.rb` – `prometheus` (`GET /metrics`, optional
-  `metrics_token` from `Redmine::Configuration`) and `active_users` (admin HTML/JSON).
+  `metrics_token` from `Redmine::Configuration`), `active_users` and `api_usage` (admin
+  HTML/JSON).
+- `lib/redmine_expert_metrics/api_usage_patch.rb` + `app/models/expert_metrics_api_usage.rb` –
+  prepended to `ApplicationController`, wraps core's `find_current_user` and records every
+  request authenticated by API credentials (key / Basic key / Basic password / OAuth) as daily
+  rows per user, verb, auth and User-Agent (`expert_metrics_api_usages`, atomic UPDATE then
+  INSERT like the counter), plus `ExpertMetricsCounter` `api_requests` (`"VERB:auth"`) for
+  Prometheus. Switch-user is booked on the key owner; the path is stored without query string;
+  rows are purged after `RETENTION_DAYS` (90) from the request path, `Collector.collect` and the
+  admin page (`purge_if_due`, hourly, never raises), plus `rake redmine_expert_metrics:purge_api_usage`.
+  Any error is logged and swallowed.
 - `lib/redmine_expert_metrics/mail_observer.rb` + `app/models/expert_metrics_counter.rb` –
   `Mail` observer counting core notifications (`X-Mailer: Redmine`, label `X-Redmine-Project`)
   into `expert_metrics_counters`; helpdesk customer mails are read from `helpdesk_messages`
   in the collector when that plugin is present.
 - `init.rb` – plugin registration, admin menu entry (icon switch for Redmine 5 vs 6/7),
-  observer registration.
+  observer registration, `ApiUsagePatch` prepend (guarded against dev reload).
 
 ## Conventions
 
@@ -59,6 +71,8 @@ docker-compose -f docker-compose.yml --profile test run --build --rm -e PLUGIN=r
 
 Tests clear `Collector::CACHE_KEY` and delete all session tokens in `setup`; create test
 tokens with `Token.create!(:user_id, :action => 'session')` + `update_columns(:updated_on)`.
+API capture is tested end to end in `test/integration/api_usage_test.rb`
+(`Redmine::ApiTest::Base`, real requests through core's `find_current_user`).
 
 ## CI
 
@@ -81,3 +95,22 @@ A final step asks the plugin website (`expertZentrale/redmine-plugins`) to rebui
 `plugin-released` dispatch, using the `SITE_DISPATCH_TOKEN` secret (fine-grained token, Contents
 read/write on that repo only); without it the site catches up on its weekly cron, and the step
 never fails a release.
+
+**Every release must also update `docs/redmine_org/`** — the copy-paste sources for the listing
+at <https://www.redmine.org/plugins/redmine_expert_metrics>. That directory renders **Textile**,
+not Markdown (`h3.` headings, `*bold*`, `@code@`, `"label":url`), so these files are written in
+Textile and are pasted in unedited. Description and installation notes are **separate fields**
+there — keep them split. Part of the release commit, not an afterthought:
+
+- `docs/redmine_org/releases/<version>.textile` — new file per release. User-facing changes only;
+  the CHANGELOG is the source but this is not a copy of it. House shape:
+  `h3. redmine_expert_metrics <version> — <YYYY-MM-DD>`, then `h4. Added`/`Changed`/`Fixed`, always
+  closing with `h4. Upgrade notes` (say "No migrations. Replace the plugin directory and restart."
+  when that is all it takes).
+- `docs/redmine_org/description.textile` — what the plugin *is*; update when a release adds a
+  feature, a metric or a page, and bump the Redmine versions under *Requirements* when they move.
+  **This one drifts silently**: read it end to end against the CHANGELOG since the last tag.
+- `docs/redmine_org/installation.textile` — update when a step changes (new migration, new
+  `configuration.yml` key, new endpoint, new gem).
+
+`docs/redmine_org/README.md` is the full checklist. `docs/` is excluded from the release archives.
