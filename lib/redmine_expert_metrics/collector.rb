@@ -16,6 +16,9 @@ module RedmineExpertMetrics
     # Label => calendar days (today included) for distinct API users.
     API_WINDOWS = { '1d' => 1, '7d' => 7, '30d' => 30 }.freeze
 
+    # Auth methods that present the API key itself (header/param, Basic user).
+    KEY_AUTH_METHODS = %w(key basic).freeze
+
     # A scrape from every pod every 15-30 s would otherwise hit the database
     # each time. Production uses a Redis cache shared by all pods (see
     # additional_environment.rb), so one collection serves the whole deployment.
@@ -128,7 +131,8 @@ module RedmineExpertMetrics
     # first, plus the users holding an API key without any use in that period.
     # Admin page and JSON only - never on /metrics.
     def api_usage_details(days)
-      empty = { :users => [], :unused_keys => api_key_holders.values }
+      holders = api_key_holders
+      empty = { :users => [], :unused_keys => holders.values, :key_holders => holders.size }
       return empty unless ExpertMetricsApiUsage.available?
 
       ExpertMetricsApiUsage.purge_if_due
@@ -145,7 +149,7 @@ module RedmineExpertMetrics
       auths = grouped_sums(scope, :auth_method)
       clients = grouped_sums(scope, :user_agent)
       latest = latest_rows(scope)
-      key_holders = api_key_holders
+      key_holders = holders
       users = User.where(:id => totals.map(&:first)).index_by(&:id)
       as_users = User.where(:id => latest.values.map(&:last_as_user_id).compact.uniq).index_by(&:id)
 
@@ -169,8 +173,11 @@ module RedmineExpertMetrics
         }
       end.compact.sort_by { |row| -row[:last_used].to_f }
 
-      used = details.map { |row| row[:user].id }
-      { :users => details, :unused_keys => key_holders.except(*used).values }
+      # Password and OAuth requests do not use the API key, so only key/basic
+      # traffic takes a holder off the "unused" list.
+      used = scope.where(:auth_method => KEY_AUTH_METHODS).distinct.pluck(:user_id)
+      { :users => details, :unused_keys => key_holders.except(*used).values,
+        :key_holders => key_holders.size }
     end
 
     # { user_id => { value => requests } } for one column.

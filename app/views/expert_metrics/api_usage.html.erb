@@ -34,7 +34,7 @@
     <li><%= l(:label_expert_metrics_api_users) %>: <strong><%= @users.size %></strong></li>
     <li><%= l(:label_expert_metrics_api_requests) %>: <strong><%= @users.sum { |row| row[:requests] } %></strong></li>
     <li><%= l(:label_expert_metrics_api_writes) %>: <strong><%= @users.sum { |row| row[:writes] } %></strong></li>
-    <li><%= l(:label_expert_metrics_api_keys) %>: <strong><%= @users.count { |row| row[:key_created_on] } + @unused_keys.size %></strong></li>
+    <li><%= l(:label_expert_metrics_api_keys) %>: <strong><%= @key_holders %></strong></li>
   </ul>
 </div>
 

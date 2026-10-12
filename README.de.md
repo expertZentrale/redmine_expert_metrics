@@ -93,7 +93,8 @@ API-Zugangsdaten angemeldet hat:
   per Cron ausführen. IP-Adresse und
   User-Agent sind personenbezogene Daten — das Protokoll in der Datenschutzdokumentation erwähnen.
 - **Kosten**: ein `UPDATE` pro API-Anfrage (plus eines auf der Zählertabelle); ein `INSERT` nur
-  für die erste Anfrage eines Tages je Client.
+  für die erste Anfrage eines Tages je Benutzer, HTTP-Methode, Anmeldeart und Client — ein
+  Skript, das liest und schreibt, erzeugt also zwei Zeilen pro Tag, nicht eine.
 
 Was ein Skript *geändert* hat, steht wie gewohnt in der Ticket-Historie — diese Seite zeigt,
 wessen Schlüssel und welcher Client dahinterstand.
@@ -146,13 +147,15 @@ production:
 ```bash
 cd /pfad/zu/redmine/plugins
 git clone https://github.com/expertZentrale/redmine_expert_metrics.git
-# Redmine neu starten
 ```
 
-Danach die Plugin-Migrationen ausführen (eine Zählertabelle und die Tabelle für die API-Nutzung):
+Danach die Plugin-Migrationen ausführen (eine Zählertabelle und die Tabelle für die API-Nutzung),
+und zwar **vor** dem Neustart von Redmine — ein Prozess, der ohne die Tabellen startet, erfasst
+die API-Nutzung erst nach dem nächsten Neustart:
 
 ```bash
 bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
+# Redmine neu starten
 ```
 
 Alternativ das Release-Archiv von der

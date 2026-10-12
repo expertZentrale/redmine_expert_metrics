@@ -90,7 +90,8 @@ is used, so the plugin records every request that core authenticated by API cred
   scrape, run `bundle exec rake redmine_expert_metrics:purge_api_usage RAILS_ENV=production` from cron. The IP address and
   User-Agent are personal data — mention the log in your privacy documentation.
 - **Cost**: one `UPDATE` per API request (plus one on the counter table); an `INSERT` only for
-  the first request of a day per client.
+  the first request of a day per user, HTTP method, authentication method and client — so a
+  script that reads and writes produces two rows a day, not one.
 
 What a script *changed* is in the issue history as usual — this page tells you whose key and
 which client was behind it.
@@ -143,13 +144,15 @@ production:
 ```bash
 cd /path/to/redmine/plugins
 git clone https://github.com/expertZentrale/redmine_expert_metrics.git
-# restart Redmine
 ```
 
-Then run the plugin migrations (a counter table and the API usage table):
+Then run the plugin migrations (a counter table and the API usage table) **before** restarting
+Redmine — a process that starts without the tables does not record API usage until its next
+restart:
 
 ```bash
 bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
+# restart Redmine
 ```
 
 Alternatively, download the release archive from the

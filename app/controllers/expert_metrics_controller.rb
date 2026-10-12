@@ -71,6 +71,7 @@ class ExpertMetricsController < ApplicationController
     details = RedmineExpertMetrics::Collector.api_usage_details(@days)
     @users = details[:users]
     @unused_keys = details[:unused_keys]
+    @key_holders = details[:key_holders]
     @tracking = ExpertMetricsApiUsage.available?
 
     respond_to do |format|
@@ -79,6 +80,7 @@ class ExpertMetricsController < ApplicationController
         render :json => {
           'days'             => @days,
           'retention_days'   => ExpertMetricsApiUsage::RETENTION_DAYS,
+          'key_holders'      => @key_holders,
           'rest_api_enabled' => Setting.rest_api_enabled?,
           'users'            => @users.map do |row|
             {

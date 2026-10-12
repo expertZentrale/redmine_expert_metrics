@@ -157,6 +157,20 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
     end
   end
 
+  def test_password_or_oauth_use_does_not_count_as_key_use
+    User.find(2).api_key
+    User.find(3).api_key
+    ExpertMetricsApiUsage.record!(attrs(:auth_method => 'password'))
+    ExpertMetricsApiUsage.record!(attrs(:user_id => 3, :auth_method => 'oauth'))
+
+    details = RedmineExpertMetrics::Collector.api_usage_details(7)
+    assert_equal [2, 3], details[:users].map { |row| row[:user].id }.sort
+    unused = details[:unused_keys].map { |row| row[:user].id }
+    assert_includes unused, 2
+    assert_includes unused, 3
+    assert_equal RedmineExpertMetrics::Collector.api_key_holders.size, details[:key_holders]
+  end
+
   private
 
   def with_memory_cache

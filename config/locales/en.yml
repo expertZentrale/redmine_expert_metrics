@@ -27,7 +27,7 @@ en:
   label_expert_metrics_api_requests: "API requests"
   label_expert_metrics_api_writes: "Of which writing (POST, PUT, PATCH, DELETE)"
   label_expert_metrics_api_keys: "Users with an API key"
-  label_expert_metrics_unused_keys: "API keys without requests in this period"
+  label_expert_metrics_unused_keys: "API keys not used in this period (password and OAuth requests do not use the key)"
   label_expert_metrics_time_ago: "%{time} ago"
   label_expert_metrics_no_user_agent: "(no User-Agent)"
   label_expert_metrics_more_clients:
