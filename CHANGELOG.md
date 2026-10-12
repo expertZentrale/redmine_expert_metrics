@@ -4,6 +4,27 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [1.3.0] - 2026-10-12
+
+### Added
+
+- **API usage page** (*Administration → expert Metrics → API usage*, `/admin/api_usage`, also
+  `.json` for admins): which users' API credentials were used in the last 1 / 7 / 30 / 90 days,
+  with requests, writing requests (POST, PUT, PATCH, DELETE), authentication method (API key,
+  API key via HTTP Basic, password via HTTP Basic — highlighted, OAuth), clients by User-Agent,
+  last IP address, last path and when the key was created; plus the users holding an API key
+  that was not used in the period. Redmine core keeps no record of API-key use, so the plugin
+  now records every request core authenticated by API credentials (patch on
+  `ApplicationController#find_current_user`), one row per user, day, method, authentication and
+  client in the new table `expert_metrics_api_usages` (migration 002). Switch-user requests are
+  booked on the key owner. Rows older than 90 days are deleted automatically; the path is
+  stored without query string so a `?key=` never lands in the table. Recording never fails a
+  request.
+- **Prometheus**: `redmine_api_requests_total{method,auth}` (counter), `redmine_api_users{window}`
+  (`1d`, `7d`, `30d`) and `redmine_api_keys_total` — aggregates only, no names.
+- **Grafana dashboard**: new *REST API* row with API users, API keys and requests per hour by
+  method and by authentication.
+
 ## [1.2.0] - 2026-09-13
 
 ### Added

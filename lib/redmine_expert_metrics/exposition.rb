@@ -52,6 +52,23 @@ module RedmineExpertMetrics
         end
       end
 
+      counter(lines, 'redmine_api_requests_total',
+              'Requests authenticated by API credentials since the plugin recorded them, by HTTP method and auth (key, basic = API key as Basic user, password, oauth).')
+      snapshot['api_requests'].to_h.each do |method, auths|
+        auths.each do |auth, count|
+          lines << sample('redmine_api_requests_total', { 'method' => method, 'auth' => auth }, count)
+        end
+      end
+
+      gauge(lines, 'redmine_api_users',
+            'Distinct users with at least one API request in the last n calendar days (today included).')
+      snapshot['api_users'].to_h.each do |window, count|
+        lines << sample('redmine_api_users', { 'window' => window }, count)
+      end
+
+      gauge(lines, 'redmine_api_keys_total', 'Users holding an API key.')
+      lines << sample('redmine_api_keys_total', {}, snapshot['api_keys'].to_i)
+
       gauge(lines, 'redmine_metrics_collect_seconds',
             'Wall time of the last uncached collection of these metrics.')
       lines << sample('redmine_metrics_collect_seconds', {}, snapshot['collect_seconds'])

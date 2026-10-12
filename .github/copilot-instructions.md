@@ -5,9 +5,9 @@ different tools — **keep them in sync when either changes.**
 
 ## Overview
 
-Small Redmine plugin: "who is active right now" as an admin page + JSON, aggregate
-numbers and mail counters as Prometheus metrics on `/metrics`. One migration (counter
-table), no settings, no permissions.
+Small Redmine plugin: "who is active right now" and "who uses the REST API" as admin pages
++ JSON, aggregate numbers and mail/API counters as Prometheus metrics on `/metrics`. Two
+migrations (counter table, API usage table), no settings, no permissions.
 
 This directory lives inside the parent `redmine-expert` deployment repo (`../../`). It is
 **not** a Redmine checkout — Redmine only exists inside the Docker image. Run everything
@@ -22,13 +22,21 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
 - `lib/redmine_expert_metrics/exposition.rb` – Prometheus text rendering. Aggregates only,
   never user names.
 - `app/controllers/expert_metrics_controller.rb` – `prometheus` (`GET /metrics`, optional
-  `metrics_token` from `Redmine::Configuration`) and `active_users` (admin HTML/JSON).
+  `metrics_token` from `Redmine::Configuration`), `active_users` and `api_usage` (admin
+  HTML/JSON).
+- `lib/redmine_expert_metrics/api_usage_patch.rb` + `app/models/expert_metrics_api_usage.rb` –
+  prepended to `ApplicationController`, wraps core's `find_current_user` and records every
+  request authenticated by API credentials (key / Basic key / Basic password / OAuth) as daily
+  rows per user, verb, auth and User-Agent (`expert_metrics_api_usages`, atomic UPDATE then
+  INSERT like the counter), plus `ExpertMetricsCounter` `api_requests` (`"VERB:auth"`) for
+  Prometheus. Switch-user is booked on the key owner; the path is stored without query string;
+  rows are purged after `RETENTION_DAYS` (90). Any error is logged and swallowed.
 - `lib/redmine_expert_metrics/mail_observer.rb` + `app/models/expert_metrics_counter.rb` –
   `Mail` observer counting core notifications (`X-Mailer: Redmine`, label `X-Redmine-Project`)
   into `expert_metrics_counters`; helpdesk customer mails are read from `helpdesk_messages`
   in the collector when that plugin is present.
 - `init.rb` – plugin registration, admin menu entry (icon switch for Redmine 5 vs 6/7),
-  observer registration.
+  observer registration, `ApiUsagePatch` prepend (guarded against dev reload).
 
 ## Conventions
 
@@ -59,6 +67,8 @@ docker-compose -f docker-compose.yml --profile test run --build --rm -e PLUGIN=r
 
 Tests clear `Collector::CACHE_KEY` and delete all session tokens in `setup`; create test
 tokens with `Token.create!(:user_id, :action => 'session')` + `update_columns(:updated_on)`.
+API capture is tested end to end in `test/integration/api_usage_test.rb`
+(`Redmine::ApiTest::Base`, real requests through core's `find_current_user`).
 
 ## CI
 

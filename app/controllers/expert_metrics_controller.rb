@@ -1,10 +1,12 @@
-# Two faces of the same data (see RedmineExpertMetrics::Collector):
+# Faces of the collected data (see RedmineExpertMetrics::Collector):
 #
 # * GET /metrics            - Prometheus text exposition, aggregate numbers only.
 #                             Open unless a `metrics_token` is set in
 #                             configuration.yml; admins always get through.
 # * GET /admin/active_users - who is working right now, HTML for admins and JSON
 #                             for scripts (admin session or admin API key).
+# * GET /admin/api_usage    - who uses the REST API, how much and with which
+#                             client; HTML and JSON, admins only.
 class ExpertMetricsController < ApplicationController
   layout 'admin'
   self.main_menu = false
@@ -18,11 +20,14 @@ class ExpertMetricsController < ApplicationController
                      :only => :prometheus, :raise => false
 
   before_action :authorize_prometheus, :only => :prometheus
-  before_action :require_admin, :only => :active_users
-  accept_api_auth :active_users
+  before_action :require_admin, :only => [:active_users, :api_usage]
+  accept_api_auth :active_users, :api_usage
 
   # Minutes the admin page looks back for the per-user list.
   DETAILS_WINDOW = 60
+
+  # Selectable periods (calendar days) of the API usage page; first is default.
+  API_USAGE_DAYS = [7, 1, 30, ExpertMetricsApiUsage::RETENTION_DAYS].freeze
 
   def prometheus
     body = RedmineExpertMetrics::Exposition.render(
@@ -53,6 +58,53 @@ class ExpertMetricsController < ApplicationController
               'last_activity' => row[:last_activity].utc.iso8601,
               'session_since' => row[:session_since].utc.iso8601,
               'sessions'      => row[:sessions]
+            }
+          end
+        }
+      end
+    end
+  end
+
+  def api_usage
+    @days = params[:days].to_i
+    @days = API_USAGE_DAYS.first unless API_USAGE_DAYS.include?(@days)
+    details = RedmineExpertMetrics::Collector.api_usage_details(@days)
+    @users = details[:users]
+    @unused_keys = details[:unused_keys]
+    @tracking = ExpertMetricsApiUsage.available?
+
+    respond_to do |format|
+      format.html
+      format.json do
+        render :json => {
+          'days'             => @days,
+          'retention_days'   => ExpertMetricsApiUsage::RETENTION_DAYS,
+          'rest_api_enabled' => Setting.rest_api_enabled?,
+          'users'            => @users.map do |row|
+            {
+              'id'             => row[:user].id,
+              'login'          => row[:user].login,
+              'name'           => row[:user].name,
+              'admin'          => row[:user].admin?,
+              'key_created_on' => row[:key_created_on] && row[:key_created_on].utc.iso8601,
+              'requests'       => row[:requests],
+              'writes'         => row[:writes],
+              'methods'        => row[:methods],
+              'auth_methods'   => row[:auth_methods],
+              'days_active'    => row[:days_active],
+              'clients'        => row[:clients],
+              'last_used'      => row[:last_used] && row[:last_used].utc.iso8601,
+              'last_ip'        => row[:last_ip],
+              'last_path'      => row[:last_path],
+              'last_as_user'   => row[:last_as_user] && row[:last_as_user].login
+            }
+          end,
+          'unused_keys'      => @unused_keys.map do |row|
+            {
+              'id'             => row[:user].id,
+              'login'          => row[:user].login,
+              'name'           => row[:user].name,
+              'key_created_on' => row[:key_created_on] && row[:key_created_on].utc.iso8601
             }
           end
         }

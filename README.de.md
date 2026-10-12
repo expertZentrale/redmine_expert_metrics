@@ -2,9 +2,10 @@
 
 # Redmine expert Metrics
 
-Zeigt, wer **gerade jetzt** in Redmine arbeitet, und stellt das zusammen mit ein paar
-Grundzahlen als Prometheus-Metriken bereit. Gebaut für die Frage „Kann ich eine Instanz für
-Wartungsarbeiten herunterfahren?“. Läuft auf **Redmine 5.1, 6.0, 6.1 und 7.0**.
+Zeigt, wer **gerade jetzt** in Redmine arbeitet und wer die **REST-API** nutzt (und mit
+welchem Skript), und stellt das zusammen mit ein paar Grundzahlen als Prometheus-Metriken
+bereit. Gebaut für die Fragen „Kann ich eine Instanz für Wartungsarbeiten herunterfahren?“ und
+„Wer ändert Daten über die API?“. Läuft auf **Redmine 5.1, 6.0, 6.1 und 7.0**.
 
 
 ## Screenshots
@@ -33,6 +34,11 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
   Sitzungen. Die Seite aktualisiert sich jede Minute selbst. Oben eine Zusammenfassung: aktive
   Benutzer in den letzten 5 / 15 / 60 Minuten, angemeldete Sitzungen, Anmeldungen in den letzten 24 h.
 - **`GET /admin/active_users.json`**: dieselben Daten für Skripte, mit Admin-API-Key.
+- **Administration → expert Metrics → API-Nutzung** (`/admin/api_usage`, auch `.json`): alle
+  Benutzer, deren API-Zugangsdaten in den letzten 1 / 7 / 30 / 90 Tagen verwendet wurden, mit
+  Anfragen, schreibenden Anfragen, Anmeldeart, Clients (User-Agent), letzter IP, letztem Pfad und
+  Erstellungsdatum des Schlüssels — dazu die Benutzer mit einem API-Schlüssel, der im Zeitraum
+  nicht verwendet wurde. Siehe [API-Nutzung](#api-nutzung).
 - **`GET /metrics`**: Prometheus-Textformat, nur Summen (keine Namen).
 
 | Metrik | Labels | Bedeutung |
@@ -45,6 +51,9 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
 | `redmine_issues_total` | `state` = `open`, `closed` | Tickets nach dem Geschlossen-Kennzeichen ihres Status |
 | `redmine_notifications_sent_total` | `project` | Benachrichtigungs-Mails, die der Redmine-Kern an seine Benutzer zugestellt hat, eine pro Empfänger (Counter); leeres Projekt für Konto- und Sicherheitsmails |
 | `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | Mails aus [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` von Kunden empfangen, `out` an Kunden gesendet (Antworten, Autoresponder, Nachfragen), `init` Erstmail eines in Redmine angelegten Tickets. Nur vorhanden, wenn dieses Plugin installiert ist (Counter) |
+| `redmine_api_requests_total` | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | mit API-Zugangsdaten angemeldete Anfragen (Counter) |
+| `redmine_api_users` | `window` = `1d`, `7d`, `30d` | verschiedene Benutzer mit API-Anfragen in den letzten n Kalendertagen, heute eingeschlossen |
+| `redmine_api_keys_total` | – | Benutzer mit API-Schlüssel |
 | `redmine_metrics_collect_seconds` | – | Laufzeit der letzten ungecachten Erhebung |
 | `redmine_info` | `redmine_version`, `plugin_version` | immer 1 |
 
@@ -59,6 +68,32 @@ der Mailabruf erzeugen nie ein Sitzungs-Token und zählen daher nicht als „akt
 Der Datenstand hinter `/metrics` und der Admin-Seite wird 15 Sekunden im `Rails.cache`
 gehalten, sodass mehrere Pods, die alle paar Sekunden abgefragt werden, nur einen Satz
 Datenbankabfragen kosten.
+
+## API-Nutzung
+
+API-Schlüssel legen die Benutzer selbst an, und sie tragen deren volle Berechtigungen; mit
+KI-generierten Skripten nutzen sie immer mehr Leute. Der Redmine-Kern protokolliert nicht, wann
+ein Schlüssel verwendet wird, also erfasst das Plugin jede Anfrage, die der Kern über
+API-Zugangsdaten angemeldet hat:
+
+- **Was zählt**: `.json`-/`.xml`-Anfragen mit Header `X-Redmine-API-Key` oder `?key=` (`key`),
+  einem API-Schlüssel als HTTP-Basic-Benutzername (`basic`), Login und Passwort per HTTP Basic
+  (`password` — rot hervorgehoben, das Skript speichert ein Passwort) oder einem OAuth-Token
+  (`oauth`, Redmine 6.1+). Anfragen, die danach abgelehnt werden (403), zählen mit; Anfragen mit
+  ungültigem Schlüssel, anonyme Anfragen und Browser-Sitzungen nicht. Solange die REST-API
+  deaktiviert ist, wird nichts erfasst.
+- **Was gespeichert wird**: eine Zeile pro Benutzer, Tag, HTTP-Methode, Anmeldeart und
+  User-Agent in der Tabelle `expert_metrics_api_usages`, mit Anzahl der Anfragen, erstem und
+  letztem Zeitpunkt, der **letzten IP-Adresse** und dem letzten Pfad (ohne Query-String, der den
+  Schlüssel enthalten kann). Wechselt ein Admin-Schlüssel den Benutzer (`X-Redmine-Switch-User`),
+  wird die Anfrage dem Schlüsselinhaber zugerechnet und der Zielbenutzer angezeigt.
+- **Aufbewahrung**: Zeilen älter als **90 Tage** werden automatisch gelöscht. IP-Adresse und
+  User-Agent sind personenbezogene Daten — das Protokoll in der Datenschutzdokumentation erwähnen.
+- **Kosten**: ein `UPDATE` pro API-Anfrage (plus eines auf der Zählertabelle); ein `INSERT` nur
+  für die erste Anfrage eines Tages je Client.
+
+Was ein Skript *geändert* hat, steht wie gewohnt in der Ticket-Historie — diese Seite zeigt,
+wessen Schlüssel und welcher Client dahinterstand.
 
 ## Wie Mails gezählt werden
 
@@ -92,6 +127,7 @@ max by (window) (redmine_active_users)
 |---|---|
 | `/admin/active_users` (HTML) | Redmine-Administratoren |
 | `/admin/active_users.json` | Administratoren, auch per `X-Redmine-API-Key` / `?key=` (REST-API muss aktiviert sein) |
+| `/admin/api_usage` (HTML, `.json`) | Administratoren; das JSON auch per Admin-API-Key |
 | `/metrics` | standardmäßig offen; ist `metrics_token` in `config/configuration.yml` gesetzt, muss er als `Authorization: Bearer <token>` oder `?token=<token>` mitgeschickt werden. Administratoren (Sitzung oder API-Key) kommen immer durch. |
 
 ```yaml
@@ -110,7 +146,7 @@ git clone https://github.com/expertZentrale/redmine_expert_metrics.git
 # Redmine neu starten
 ```
 
-Danach die Plugin-Migration ausführen (eine kleine Zählertabelle):
+Danach die Plugin-Migrationen ausführen (eine Zählertabelle und die Tabelle für die API-Nutzung):
 
 ```bash
 bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
@@ -130,7 +166,8 @@ Unter *Dashboards → New → Import* die Datei hochladen oder ihren Inhalt einf
 Prometheus-Datenquelle auswählen — mehr ist nicht zu konfigurieren.
 
 Es zeigt aktive Benutzer je Zeitfenster, angemeldete Sitzungen, Konten nach Status, offene Tickets,
-aktive Projekte, das Mailaufkommen von Helpdesk und Benachrichtigungen sowie eine Zeile zur
+aktive Projekte, das Mailaufkommen von Helpdesk und Benachrichtigungen, REST-API-Benutzer und
+Anfragen pro Stunde nach Methode und Anmeldeart sowie eine Zeile zur
 Scrape-Gesundheit mit Sammeldauer und Status je Ziel. Eine Variable wählt die Installation: **Job**,
 der Scrape-Job, der diese Metriken ausliefert.
 

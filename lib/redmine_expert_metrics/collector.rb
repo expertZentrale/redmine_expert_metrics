@@ -6,11 +6,15 @@
 # User.verify_session_token bumps its updated_on on every request, at most once
 # per minute. That is written regardless of the session store (cookie, Redis, DB)
 # and is global for the whole installation, so every pod reports the same numbers.
-# API-key requests never create a session token and therefore do not count.
+# API-key requests never create a session token and therefore do not count;
+# they are recorded separately (ExpertMetricsApiUsage, see api_usage_details).
 module RedmineExpertMetrics
   module Collector
     # Label => minutes. Order is the order in the exposition and on the admin page.
     WINDOWS = { '5m' => 5, '15m' => 15, '60m' => 60 }.freeze
+
+    # Label => calendar days (today included) for distinct API users.
+    API_WINDOWS = { '1d' => 1, '7d' => 7, '30d' => 30 }.freeze
 
     # A scrape from every pod every 15-30 s would otherwise hit the database
     # each time. Production uses a Redis cache shared by all pods (see
@@ -61,6 +65,9 @@ module RedmineExpertMetrics
         'issues_closed'     => Issue.open(false).count,
         'notifications_sent' => notification_counts,
         'helpdesk_mails'    => helpdesk_mail_counts,
+        'api_requests'      => api_request_counts,
+        'api_users'         => api_user_counts,
+        'api_keys'          => api_key_scope.count,
         'collect_seconds'   => (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(4)
       }
     end
@@ -91,6 +98,85 @@ module RedmineExpertMetrics
     def notification_counts
       return {} unless ExpertMetricsCounter.available?
       ExpertMetricsCounter.values(ExpertMetricsCounter::NOTIFICATIONS_SENT)
+    end
+
+    # API requests since the plugin recorded them, by HTTP verb and auth method:
+    # { 'GET' => { 'key' => 12 }, ... }. Counter semantics, survives the purge
+    # of the daily usage rows.
+    def api_request_counts
+      return {} unless ExpertMetricsCounter.available?
+      ExpertMetricsCounter.values(ExpertMetricsApiUsage::COUNTER).each_with_object({}) do |(label, count), h|
+        verb, auth = label.split(':', 2)
+        (h[verb] ||= {})[auth.to_s] = count
+      end
+    end
+
+    # Distinct users with API traffic in the last n calendar days (today
+    # included). Day granularity - that is what the usage table records.
+    def api_user_counts
+      return {} unless ExpertMetricsApiUsage.available?
+      today = Date.today
+      API_WINDOWS.each_with_object({}) do |(label, days), h|
+        h[label] = ExpertMetricsApiUsage.where('day > ?', today - days).distinct.count(:user_id)
+      end
+    end
+
+    # Per-user API usage over the last +days+ calendar days, most recent use
+    # first, plus the users holding an API key without any use in that period.
+    # Admin page and JSON only - never on /metrics.
+    def api_usage_details(days)
+      empty = { :users => [], :unused_keys => api_key_holders.values }
+      return empty unless ExpertMetricsApiUsage.available?
+
+      rows = ExpertMetricsApiUsage.where('day > ?', Date.today - days).to_a
+      key_holders = api_key_holders
+      users = User.where(:id => rows.map(&:user_id).uniq).index_by(&:id)
+      as_users = User.where(:id => rows.map(&:last_as_user_id).compact.uniq).index_by(&:id)
+
+      details = rows.group_by(&:user_id).map do |user_id, user_rows|
+        user = users[user_id]
+        next if user.nil?
+        latest = user_rows.max_by { |row| row.last_at.to_f }
+        clients = Hash.new(0)
+        user_rows.each { |row| clients[row.user_agent] += row.requests }
+        {
+          :user           => user,
+          :key_created_on => key_holders[user_id] && key_holders[user_id][:key_created_on],
+          :requests       => user_rows.sum(&:requests),
+          :writes         => user_rows.reject { |row| ExpertMetricsApiUsage::READ_METHODS.include?(row.http_method) }.sum(&:requests),
+          :methods        => sum_by(user_rows, &:http_method),
+          :auth_methods   => sum_by(user_rows, &:auth_method),
+          :days_active    => user_rows.map(&:day).uniq.size,
+          :clients        => clients.sort_by { |ua, count| [-count, ua] }.to_h,
+          :last_used      => latest.last_at,
+          :last_ip        => latest.last_ip,
+          :last_path      => latest.last_path,
+          :last_as_user   => as_users[latest.last_as_user_id]
+        }
+      end.compact.sort_by { |row| -row[:last_used].to_f }
+
+      used = details.map { |row| row[:user].id }
+      { :users => details, :unused_keys => key_holders.except(*used).values }
+    end
+
+    # API keys core would accept: User.find_by_api_key only resolves active
+    # users, and the anonymous user (or a group) may own a stray token.
+    def api_key_scope
+      Token.where(:action => 'api').joins(:user)
+           .where(:users => { :type => 'User', :status => User::STATUS_ACTIVE })
+    end
+
+    # { user_id => { :user, :key_created_on } } for every user with a usable API
+    # key, ordered by login.
+    def api_key_holders
+      tokens = api_key_scope.pluck(:user_id, :created_on).to_h
+      User.where(:id => tokens.keys).sort_by { |user| user.login.to_s.downcase }.each_with_object({}) do |user, h|
+        h[user.id] = { :user => user, :key_created_on => tokens[user.id] }
+      end
+    end
+
+    def sum_by(rows)
+      rows.each_with_object(Hash.new(0)) { |row, h| h[yield(row)] += row.requests }.sort.to_h
     end
 
     # One row per user with a session request in the last +minutes+ minutes,

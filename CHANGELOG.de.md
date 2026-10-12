@@ -4,6 +4,28 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [1.3.0] - 2026-10-12
+
+### Hinzugefügt
+
+- **Seite API-Nutzung** (*Administration → expert Metrics → API-Nutzung*, `/admin/api_usage`,
+  für Administratoren auch als `.json`): wessen API-Zugangsdaten in den letzten 1 / 7 / 30 / 90
+  Tagen verwendet wurden, mit Anfragen, schreibenden Anfragen (POST, PUT, PATCH, DELETE),
+  Anmeldeart (API-Schlüssel, API-Schlüssel per HTTP Basic, Passwort per HTTP Basic —
+  hervorgehoben, OAuth), Clients nach User-Agent, letzter IP-Adresse, letztem Pfad und
+  Erstellungsdatum des Schlüssels; dazu die Benutzer mit einem API-Schlüssel, der im Zeitraum
+  nicht verwendet wurde. Der Redmine-Kern protokolliert die Nutzung von API-Schlüsseln nicht,
+  daher erfasst das Plugin jetzt jede Anfrage, die der Kern über API-Zugangsdaten angemeldet hat
+  (Patch auf `ApplicationController#find_current_user`), eine Zeile pro Benutzer, Tag, Methode,
+  Anmeldeart und Client in der neuen Tabelle `expert_metrics_api_usages` (Migration 002).
+  Switch-User-Anfragen werden dem Schlüsselinhaber zugerechnet. Zeilen älter als 90 Tage werden
+  automatisch gelöscht; der Pfad wird ohne Query-String gespeichert, ein `?key=` landet also nie
+  in der Tabelle. Die Erfassung lässt nie eine Anfrage scheitern.
+- **Prometheus**: `redmine_api_requests_total{method,auth}` (Counter), `redmine_api_users{window}`
+  (`1d`, `7d`, `30d`) und `redmine_api_keys_total` — nur Summen, keine Namen.
+- **Grafana-Dashboard**: neue Zeile *REST API* mit API-Benutzern, API-Schlüsseln und Anfragen
+  pro Stunde nach Methode und nach Anmeldeart.
+
 ## [1.2.0] - 2026-09-13
 
 ### Hinzugefügt

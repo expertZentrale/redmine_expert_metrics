@@ -2,8 +2,9 @@
 
 # Redmine expert Metrics
 
-See who is working in Redmine **right now** and expose that, plus a few basic totals, as
-Prometheus metrics. Built for the question "can I take an instance down for maintenance?".
+See who is working in Redmine **right now**, who uses the **REST API** (and with which script),
+and expose that, plus a few basic totals, as Prometheus metrics. Built for the questions "can I
+take an instance down for maintenance?" and "who is changing data through the API?".
 Works on **Redmine 5.1, 6.0, 6.1 and 7.0**.
 
 
@@ -33,6 +34,11 @@ hour](docs/screenshots/en/04-grafana.png)
   refreshes itself every minute. Summary on top: active users in the last 5 / 15 / 60 minutes,
   logged-in sessions, logins in the last 24 h.
 - **`GET /admin/active_users.json`**: the same data for scripts, with an admin API key.
+- **Administration → expert Metrics → API usage** (`/admin/api_usage`, also `.json`): every
+  user whose API credentials were used in the last 1 / 7 / 30 / 90 days, with requests, writing
+  requests, authentication method, clients (User-Agent), last IP, last path and when the key was
+  created — plus the users holding an API key that was not used in the period. See
+  [API usage](#api-usage).
 - **`GET /metrics`**: Prometheus text exposition with aggregate numbers only (no names).
 
 | Metric | Labels | Meaning |
@@ -45,6 +51,9 @@ hour](docs/screenshots/en/04-grafana.png)
 | `redmine_issues_total` | `state` = `open`, `closed` | issues by the closed flag of their status |
 | `redmine_notifications_sent_total` | `project` | notification mails Redmine core delivered to its users, one per recipient (counter); empty project for account and security mails |
 | `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | mails recorded by [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` received from customers, `out` sent to customers (replies, autoresponder, follow-ups), `init` initial mail of a ticket opened in Redmine. Only present when that plugin is installed (counter) |
+| `redmine_api_requests_total` | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | requests authenticated by API credentials (counter) |
+| `redmine_api_users` | `window` = `1d`, `7d`, `30d` | distinct users with API requests in the last n calendar days, today included |
+| `redmine_api_keys_total` | – | users holding an API key |
 | `redmine_metrics_collect_seconds` | – | wall time of the last uncached collection |
 | `redmine_info` | `redmine_version`, `plugin_version` | always 1 |
 
@@ -58,6 +67,31 @@ session token, so they do not count as "active".
 
 The snapshot behind `/metrics` and the admin page is cached for 15 seconds in `Rails.cache`,
 so several pods scraped every few seconds still cost one set of queries.
+
+## API usage
+
+API keys are created by the users themselves and carry their full permissions; with
+AI-generated scripts more and more people use them. Redmine core keeps no record of when a key
+is used, so the plugin records every request that core authenticated by API credentials:
+
+- **What counts**: `.json` / `.xml` requests with an `X-Redmine-API-Key` header or `?key=`
+  (`key`), an API key as HTTP Basic user name (`basic`), login and password via HTTP Basic
+  (`password` — highlighted in red, the script stores a password) or an OAuth token (`oauth`,
+  Redmine 6.1+). Requests that are denied afterwards (403) count too; requests with an invalid
+  key, anonymous requests and browser sessions do not. Nothing is recorded while the REST API
+  is disabled.
+- **What is stored**: one row per user, day, HTTP method, authentication method and User-Agent
+  in the table `expert_metrics_api_usages`, with the request count, first and last time, the
+  **last IP address** and the last path (without query string, which may carry the key). When an
+  admin key switches user (`X-Redmine-Switch-User`), the request is booked on the key owner and
+  the switched-to user is shown.
+- **Retention**: rows older than **90 days** are deleted automatically. The IP address and
+  User-Agent are personal data — mention the log in your privacy documentation.
+- **Cost**: one `UPDATE` per API request (plus one on the counter table); an `INSERT` only for
+  the first request of a day per client.
+
+What a script *changed* is in the issue history as usual — this page tells you whose key and
+which client was behind it.
 
 ## How mails are counted
 
@@ -91,6 +125,7 @@ max by (window) (redmine_active_users)
 |---|---|
 | `/admin/active_users` (HTML) | Redmine administrators |
 | `/admin/active_users.json` | administrators, also via `X-Redmine-API-Key` / `?key=` (REST API must be enabled) |
+| `/admin/api_usage` (HTML, `.json`) | administrators; the JSON also via admin API key |
 | `/metrics` | open by default; if `metrics_token` is set in `config/configuration.yml`, it must be sent as `Authorization: Bearer <token>` or `?token=<token>`. Administrators (session or API key) always pass. |
 
 ```yaml
@@ -109,7 +144,7 @@ git clone https://github.com/expertZentrale/redmine_expert_metrics.git
 # restart Redmine
 ```
 
-Then run the plugin migration (one small counter table):
+Then run the plugin migrations (a counter table and the API usage table):
 
 ```bash
 bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
@@ -129,7 +164,8 @@ Import it under *Dashboards → New → Import*, upload the file or paste its co
 Prometheus datasource — nothing else needs configuring.
 
 It shows active users per window, logged-in sessions, accounts by status, open issues, active
-projects, helpdesk and notification mail volume, and a scrape-health row with collection time and
+projects, helpdesk and notification mail volume, REST API users and requests per hour by method
+and authentication, and a scrape-health row with collection time and
 per-target status. One variable selects the installation: **Job**, the scrape job that serves these
 metrics.
 

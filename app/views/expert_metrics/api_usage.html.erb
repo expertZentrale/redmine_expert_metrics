@@ -1,0 +1,139 @@
+<% html_title l(:label_expert_metrics_api_usage) %>
+
+<div class="contextual">
+  <%= link_to l(:label_expert_metrics_active_users), expert_metrics_active_users_path, :class => 'icon icon-user' %>
+  <%= link_to 'JSON', expert_metrics_api_usage_path(:days => @days, :format => 'json') %>
+  <%= link_to l(:label_expert_metrics_prometheus), expert_metrics_prometheus_path %>
+</div>
+
+<h2><%= l(:label_expert_metrics) %> &#187; <%= l(:label_expert_metrics_api_usage) %></h2>
+
+<p><%= l(:text_expert_metrics_api_usage_intro, :days => ExpertMetricsApiUsage::RETENTION_DAYS) %></p>
+
+<% unless Setting.rest_api_enabled? %>
+  <p class="warning"><%= l(:text_expert_metrics_api_disabled) %></p>
+<% end %>
+<% unless @tracking %>
+  <p class="warning"><%= l(:text_expert_metrics_api_not_migrated) %></p>
+<% end %>
+
+<p class="expert-metrics-api-days">
+  <%= l(:label_expert_metrics_api_period) %>:
+  <% ExpertMetricsController::API_USAGE_DAYS.sort.each do |days| %>
+    <% label = l(:label_expert_metrics_api_days, :count => days) %>
+    <% if days == @days %>
+      <strong><%= label %></strong>
+    <% else %>
+      <%= link_to label, expert_metrics_api_usage_path(:days => days) %>
+    <% end %>
+  <% end %>
+</p>
+
+<div class="box">
+  <ul>
+    <li><%= l(:label_expert_metrics_api_users) %>: <strong><%= @users.size %></strong></li>
+    <li><%= l(:label_expert_metrics_api_requests) %>: <strong><%= @users.sum { |row| row[:requests] } %></strong></li>
+    <li><%= l(:label_expert_metrics_api_writes) %>: <strong><%= @users.sum { |row| row[:writes] } %></strong></li>
+    <li><%= l(:label_expert_metrics_api_keys) %>: <strong><%= @users.count { |row| row[:key_created_on] } + @unused_keys.size %></strong></li>
+  </ul>
+</div>
+
+<% if @users.empty? %>
+  <p class="nodata"><%= l(:label_no_data) %></p>
+<% else %>
+  <div class="autoscroll">
+    <table class="list expert-metrics-api-usage">
+      <thead>
+        <tr>
+          <th><%= l(:field_login) %></th>
+          <th><%= l(:field_name) %></th>
+          <th><%= l(:field_expert_metrics_last_used) %></th>
+          <th><%= l(:field_expert_metrics_requests) %></th>
+          <th><%= l(:field_expert_metrics_writes) %></th>
+          <th><%= l(:field_expert_metrics_auth) %></th>
+          <th><%= l(:field_expert_metrics_clients) %></th>
+          <th><%= l(:field_expert_metrics_last_ip) %></th>
+          <th><%= l(:field_expert_metrics_last_path) %></th>
+          <th><%= l(:field_expert_metrics_key_created_on) %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @users.each do |row| %>
+          <tr class="<%= cycle('odd', 'even') %>">
+            <td class="username">
+              <%= link_to row[:user].login, user_path(row[:user]) %>
+              <% if row[:user].admin? %><em>(<%= l(:field_admin) %>)</em><% end %>
+            </td>
+            <td class="name"><%= row[:user].name %></td>
+            <td title="<%= format_time(row[:last_used]) %>">
+              <%= l(:label_expert_metrics_time_ago, :time => distance_of_time_in_words(Time.now, row[:last_used])) %>
+            </td>
+            <td class="count" title="<%= row[:methods].map { |verb, count| "#{verb}: #{count}" }.join(', ') %>">
+              <%= row[:requests] %>
+            </td>
+            <td class="count"><%= row[:writes] %></td>
+            <td class="auth">
+              <% row[:auth_methods].each do |auth, count| %>
+                <span class="<%= 'expert-metrics-password' if auth == 'password' %>"
+                      title="<%= l("label_expert_metrics_auth_#{auth}_hint", :default => auth) %>">
+                  <%= l("label_expert_metrics_auth_#{auth}", :default => auth) %> (<%= count %>)
+                </span><br>
+              <% end %>
+            </td>
+            <td class="clients">
+              <% row[:clients].first(3).each do |user_agent, count| %>
+                <code title="<%= user_agent %>"><%= truncate(user_agent.presence || l(:label_expert_metrics_no_user_agent), :length => 40) %></code> (<%= count %>)<br>
+              <% end %>
+              <% if row[:clients].size > 3 %>
+                <em><%= l(:label_expert_metrics_more_clients, :count => row[:clients].size - 3) %></em>
+              <% end %>
+            </td>
+            <td><%= row[:last_ip] %></td>
+            <td>
+              <code><%= truncate(row[:last_path].to_s, :length => 40) %></code>
+              <% if row[:last_as_user] %>
+                <br><em><%= l(:label_expert_metrics_switched_to, :login => row[:last_as_user].login) %></em>
+              <% end %>
+            </td>
+            <td><%= row[:key_created_on] ? format_date(row[:key_created_on]) : '-' %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<h3><%= l(:label_expert_metrics_unused_keys) %></h3>
+
+<% if @unused_keys.empty? %>
+  <p class="nodata"><%= l(:label_no_data) %></p>
+<% else %>
+  <div class="autoscroll">
+    <table class="list expert-metrics-unused-keys">
+      <thead>
+        <tr>
+          <th><%= l(:field_login) %></th>
+          <th><%= l(:field_name) %></th>
+          <th><%= l(:field_expert_metrics_key_created_on) %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @unused_keys.each do |row| %>
+          <tr class="<%= cycle('odd', 'even') %>">
+            <td class="username"><%= link_to row[:user].login, user_path(row[:user]) %></td>
+            <td class="name"><%= row[:user].name %></td>
+            <td><%= format_date(row[:key_created_on]) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<% content_for :header_tags do %>
+  <style>
+    table.expert-metrics-api-usage td { vertical-align: top; }
+    table.expert-metrics-api-usage td.clients, table.expert-metrics-api-usage td.auth { text-align: left; white-space: nowrap; }
+    .expert-metrics-password { color: #c61a1a; font-weight: bold; }
+  </style>
+<% end %>
