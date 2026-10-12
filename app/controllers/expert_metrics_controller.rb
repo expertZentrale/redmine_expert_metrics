@@ -79,6 +79,7 @@ class ExpertMetricsController < ApplicationController
       format.json do
         render :json => {
           'days'             => @days,
+          'enabled'          => ExpertMetricsApiUsage.enabled?,
           'retention_days'   => ExpertMetricsApiUsage::RETENTION_DAYS,
           'key_holders'      => @key_holders,
           'rest_api_enabled' => Setting.rest_api_enabled?,

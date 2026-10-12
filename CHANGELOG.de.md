@@ -9,7 +9,9 @@
 ### Hinzugefügt
 
 - **Seite API-Nutzung** (*Administration → expert Metrics → API-Nutzung*, `/admin/api_usage`,
-  für Administratoren auch als `.json`): wessen API-Zugangsdaten in den letzten 1 / 7 / 30 / 90
+  für Administratoren auch als `.json`), **optional** über die neue Plugin-Einstellung
+  *API-Nutzung erfassen* (standardmäßig aus; solange aus, kosten API-Anfragen nichts zusätzlich
+  und `/metrics` führt keine API-Abfragen aus): wessen API-Zugangsdaten in den letzten 1 / 7 / 30 / 90
   Tagen verwendet wurden, mit Anfragen, schreibenden Anfragen (POST, PUT, PATCH, DELETE),
   Anmeldeart (API-Schlüssel, API-Schlüssel per HTTP Basic, Passwort per HTTP Basic —
   hervorgehoben, OAuth), Clients nach User-Agent, letzter IP-Adresse, letztem Pfad und
@@ -22,7 +24,7 @@
   automatisch gelöscht (bei API-Anfragen, `/metrics`-Erhebungen und auf der Admin-Seite;
   `rake redmine_expert_metrics:purge_api_usage` für Cron); der Pfad wird ohne Query-String gespeichert, ein `?key=` landet also nie
   in der Tabelle. Die Erfassung lässt nie eine Anfrage scheitern.
-- **Prometheus**: `redmine_api_requests_total{method,auth}` (Counter), `redmine_api_users{window}`
+- **Prometheus** (nur bei eingeschalteter Erfassung): `redmine_api_requests_total{method,auth}` (Counter), `redmine_api_users{window}`
   (`1d`, `7d`, `30d`) und `redmine_api_keys_total` — nur Summen, keine Namen.
 - **Grafana-Dashboard**: neue Zeile *REST API* mit API-Benutzern, API-Schlüsseln und Anfragen
   pro Stunde nach Methode und nach Anmeldeart.

@@ -9,7 +9,8 @@
 ### Added
 
 - **API usage page** (*Administration → expert Metrics → API usage*, `/admin/api_usage`, also
-  `.json` for admins): which users' API credentials were used in the last 1 / 7 / 30 / 90 days,
+  `.json` for admins), **opt-in** via the new plugin setting *Record API usage* (off by default;
+  while off, API requests cost nothing extra and `/metrics` runs no API queries): which users' API credentials were used in the last 1 / 7 / 30 / 90 days,
   with requests, writing requests (POST, PUT, PATCH, DELETE), authentication method (API key,
   API key via HTTP Basic, password via HTTP Basic — highlighted, OAuth), clients by User-Agent,
   last IP address, last path and when the key was created; plus the users holding an API key
@@ -20,7 +21,7 @@
   booked on the key owner. Rows older than 90 days are deleted automatically (on API requests, `/metrics` collections and the admin page; `rake redmine_expert_metrics:purge_api_usage` for cron); the path is
   stored without query string so a `?key=` never lands in the table. Recording never fails a
   request.
-- **Prometheus**: `redmine_api_requests_total{method,auth}` (counter), `redmine_api_users{window}`
+- **Prometheus** (only while recording is on): `redmine_api_requests_total{method,auth}` (counter), `redmine_api_users{window}`
   (`1d`, `7d`, `30d`) and `redmine_api_keys_total` — aggregates only, no names.
 - **Grafana dashboard**: new *REST API* row with API users, API keys and requests per hour by
   method and by authentication.

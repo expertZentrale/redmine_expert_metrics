@@ -52,6 +52,21 @@ module RedmineExpertMetrics
         end
       end
 
+      # nil while API usage recording is switched off: series left out.
+      render_api(lines, snapshot) unless snapshot['api_keys'].nil?
+
+      gauge(lines, 'redmine_metrics_collect_seconds',
+            'Wall time of the last uncached collection of these metrics.')
+      lines << sample('redmine_metrics_collect_seconds', {}, snapshot['collect_seconds'])
+
+      gauge(lines, 'redmine_info', 'Redmine and plugin version as labels; value is always 1.')
+      lines << sample('redmine_info',
+                      { 'redmine_version' => Redmine::VERSION.to_s, 'plugin_version' => plugin_version.to_s }, 1)
+
+      lines.join("\n") + "\n"
+    end
+
+    def render_api(lines, snapshot)
       counter(lines, 'redmine_api_requests_total',
               'Requests authenticated by API credentials since the plugin recorded them, by HTTP method and auth (key, basic = API key as Basic user, password, oauth).')
       snapshot['api_requests'].to_h.each do |method, auths|
@@ -68,16 +83,6 @@ module RedmineExpertMetrics
 
       gauge(lines, 'redmine_api_keys_total', 'Users holding an API key.')
       lines << sample('redmine_api_keys_total', {}, snapshot['api_keys'].to_i)
-
-      gauge(lines, 'redmine_metrics_collect_seconds',
-            'Wall time of the last uncached collection of these metrics.')
-      lines << sample('redmine_metrics_collect_seconds', {}, snapshot['collect_seconds'])
-
-      gauge(lines, 'redmine_info', 'Redmine and plugin version as labels; value is always 1.')
-      lines << sample('redmine_info',
-                      { 'redmine_version' => Redmine::VERSION.to_s, 'plugin_version' => plugin_version.to_s }, 1)
-
-      lines.join("\n") + "\n"
     end
 
     def gauge(lines, name, help)

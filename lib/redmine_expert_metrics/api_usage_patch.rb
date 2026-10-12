@@ -18,6 +18,7 @@ module RedmineExpertMetrics
     private
 
     def expert_metrics_record_api_usage(user)
+      return unless ExpertMetricsApiUsage.enabled?
       return if user.nil? || performed?
       return unless api_request? && Setting.rest_api_enabled? && accept_api_auth?
       return unless ExpertMetricsApiUsage.available?

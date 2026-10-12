@@ -9,8 +9,24 @@ class RedmineExpertMetricsApiUsageTest < Redmine::ApiTest::Base
 
   def setup
     super
+    # Recording is opt-in; these tests exercise it switched on.
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '1' }
     ExpertMetricsApiUsage.delete_all
     ExpertMetricsCounter.delete_all
+  end
+
+  def teardown
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
+    super
+  end
+
+  def test_nothing_recorded_while_switched_off
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
+    get '/issues.json', :headers => { 'X-Redmine-API-Key' => User.find(2).api_key }
+    assert_response :success
+
+    assert_equal 0, ExpertMetricsApiUsage.count
+    assert_equal({}, ExpertMetricsCounter.values(ExpertMetricsApiUsage::COUNTER))
   end
 
   def test_api_key_header_is_recorded

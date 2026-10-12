@@ -50,3 +50,6 @@ de:
   field_expert_metrics_last_ip: "Letzte IP"
   field_expert_metrics_last_path: "Letzter Pfad"
   field_expert_metrics_key_created_on: "API-Schlüssel erstellt"
+  label_expert_metrics_api_usage_enabled: "API-Nutzung erfassen"
+  text_expert_metrics_api_usage_enabled: "Erfasst jede mit API-Zugangsdaten angemeldete Anfrage (pro Tag, Benutzer, Methode, Anmeldeart und Client, mit letzter IP-Adresse und letztem Pfad; 90 Tage aufbewahrt) und ergänzt /metrics um die API-Reihen. Aus: keine zusätzlichen Datenbankschreibzugriffe pro API-Anfrage und keine API-Abfragen in /metrics."
+  text_expert_metrics_api_usage_off: "Die Erfassung ist ausgeschaltet (Plugin-Einstellung \"API-Nutzung erfassen\") - die Seite zeigt, was erfasst wurde, solange sie eingeschaltet war."

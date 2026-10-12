@@ -2,7 +2,9 @@
 
 Small Redmine plugin: "who is active right now" and "who uses the REST API" as admin pages
 + JSON, aggregate numbers and mail/API counters as Prometheus metrics on `/metrics`. Two
-migrations (counter table, API usage table), no settings, no permissions.
+migrations (counter table, API usage table), no permissions, one setting: `api_usage_enabled`
+(off by default) — while off, `ApiUsagePatch` returns before any query and `Collector.collect`
+leaves `api_*` nil, so `/metrics` omits those series.
 
 This directory lives inside the parent `redmine-expert` deployment repo (`../../`). It is
 **not** a Redmine checkout — Redmine only exists inside the Docker image. Run everything

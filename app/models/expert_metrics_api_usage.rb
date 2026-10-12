@@ -17,6 +17,14 @@ class ExpertMetricsApiUsage < ActiveRecord::Base
   belongs_to :user
   belongs_to :last_as_user, :class_name => 'User', :optional => true
 
+  # Plugin setting "Record API usage" (off by default). Setting values are
+  # cached per request by core, so this costs no query.
+  def self.enabled?
+    Setting.plugin_redmine_expert_metrics['api_usage_enabled'].to_s == '1'
+  rescue StandardError
+    false
+  end
+
   # False until db/migrate/002 has run. Schema-cache lookup, no query per call.
   def self.available?
     table_exists?

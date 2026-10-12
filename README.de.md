@@ -51,11 +51,13 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
 | `redmine_issues_total` | `state` = `open`, `closed` | Tickets nach dem Geschlossen-Kennzeichen ihres Status |
 | `redmine_notifications_sent_total` | `project` | Benachrichtigungs-Mails, die der Redmine-Kern an seine Benutzer zugestellt hat, eine pro Empfänger (Counter); leeres Projekt für Konto- und Sicherheitsmails |
 | `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | Mails aus [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` von Kunden empfangen, `out` an Kunden gesendet (Antworten, Autoresponder, Nachfragen), `init` Erstmail eines in Redmine angelegten Tickets. Nur vorhanden, wenn dieses Plugin installiert ist (Counter) |
-| `redmine_api_requests_total` | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | mit API-Zugangsdaten angemeldete Anfragen (Counter) |
-| `redmine_api_users` | `window` = `1d`, `7d`, `30d` | verschiedene Benutzer mit API-Anfragen in den letzten n Kalendertagen, heute eingeschlossen |
-| `redmine_api_keys_total` | – | Benutzer mit API-Schlüssel |
+| `redmine_api_requests_total`¹ | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | mit API-Zugangsdaten angemeldete Anfragen (Counter) |
+| `redmine_api_users`¹ | `window` = `1d`, `7d`, `30d` | verschiedene Benutzer mit API-Anfragen in den letzten n Kalendertagen, heute eingeschlossen |
+| `redmine_api_keys_total`¹ | – | Benutzer mit API-Schlüssel |
 | `redmine_metrics_collect_seconds` | – | Laufzeit der letzten ungecachten Erhebung |
 | `redmine_info` | `redmine_version`, `plugin_version` | immer 1 |
+
+¹ Die drei `redmine_api_*`-Reihen gibt es nur, solange *API-Nutzung erfassen* eingeschaltet ist.
 
 ## Wie „aktiv“ gemessen wird
 
@@ -73,8 +75,15 @@ Datenbankabfragen kosten.
 
 API-Schlüssel legen die Benutzer selbst an, und sie tragen deren volle Berechtigungen; mit
 KI-generierten Skripten nutzen sie immer mehr Leute. Der Redmine-Kern protokolliert nicht, wann
-ein Schlüssel verwendet wird, also erfasst das Plugin jede Anfrage, die der Kern über
-API-Zugangsdaten angemeldet hat:
+ein Schlüssel verwendet wird, also kann das Plugin jede Anfrage erfassen, die der Kern über
+API-Zugangsdaten angemeldet hat.
+
+**Die Erfassung ist standardmäßig aus.** Einschalten unter *Administration → Plugins → Redmine
+expert Metrics → Konfigurieren* (*API-Nutzung erfassen*). Solange sie aus ist, kosten
+API-Anfragen nichts zusätzlich, `/metrics` führt keine API-Abfragen aus und lässt die
+`redmine_api_*`-Reihen weg, und die Seite zeigt, was erfasst wurde, solange sie an war. Bereits
+gespeicherte Zeilen werden trotzdem nach 90 Tagen gelöscht.
+
 
 - **Was zählt**: `.json`-/`.xml`-Anfragen mit Header `X-Redmine-API-Key` oder `?key=` (`key`),
   einem API-Schlüssel als HTTP-Basic-Benutzername (`basic`), Login und Passwort per HTTP Basic
@@ -162,7 +171,7 @@ Alternativ das Release-Archiv von der
 [Releases-Seite](https://github.com/expertZentrale/redmine_expert_metrics/releases) herunterladen
 und nach `plugins/` entpacken.
 
-Keine Einstellungen, keine Berechtigungen — das Plugin ist aktiv, sobald es geladen wird.
+Keine Berechtigungen; eine Einstellung (*API-Nutzung erfassen*, standardmäßig aus, siehe [API-Nutzung](#api-nutzung)). Alles andere ist aktiv, sobald das Plugin geladen wird.
 
 ## Grafana-Dashboard
 

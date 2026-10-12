@@ -51,11 +51,13 @@ hour](docs/screenshots/en/04-grafana.png)
 | `redmine_issues_total` | `state` = `open`, `closed` | issues by the closed flag of their status |
 | `redmine_notifications_sent_total` | `project` | notification mails Redmine core delivered to its users, one per recipient (counter); empty project for account and security mails |
 | `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | mails recorded by [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` received from customers, `out` sent to customers (replies, autoresponder, follow-ups), `init` initial mail of a ticket opened in Redmine. Only present when that plugin is installed (counter) |
-| `redmine_api_requests_total` | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | requests authenticated by API credentials (counter) |
-| `redmine_api_users` | `window` = `1d`, `7d`, `30d` | distinct users with API requests in the last n calendar days, today included |
-| `redmine_api_keys_total` | – | users holding an API key |
+| `redmine_api_requests_total`¹ | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | requests authenticated by API credentials (counter) |
+| `redmine_api_users`¹ | `window` = `1d`, `7d`, `30d` | distinct users with API requests in the last n calendar days, today included |
+| `redmine_api_keys_total`¹ | – | users holding an API key |
 | `redmine_metrics_collect_seconds` | – | wall time of the last uncached collection |
 | `redmine_info` | `redmine_version`, `plugin_version` | always 1 |
+
+¹ The three `redmine_api_*` series are only present while *Record API usage* is switched on.
 
 ## How "active" is measured
 
@@ -72,7 +74,13 @@ so several pods scraped every few seconds still cost one set of queries.
 
 API keys are created by the users themselves and carry their full permissions; with
 AI-generated scripts more and more people use them. Redmine core keeps no record of when a key
-is used, so the plugin records every request that core authenticated by API credentials:
+is used, so the plugin can record every request that core authenticated by API credentials.
+
+**Recording is off by default.** Switch it on under *Administration → Plugins → Redmine expert
+Metrics → Configure* (*Record API usage*). While it is off, API requests cost nothing extra,
+`/metrics` runs no API queries and leaves the `redmine_api_*` series out, and the page shows what
+was recorded while it was on. Rows already stored still age out after 90 days.
+
 
 - **What counts**: `.json` / `.xml` requests with an `X-Redmine-API-Key` header or `?key=`
   (`key`), an API key as HTTP Basic user name (`basic`), login and password via HTTP Basic
@@ -159,7 +167,7 @@ Alternatively, download the release archive from the
 [Releases page](https://github.com/expertZentrale/redmine_expert_metrics/releases) and unpack
 it into `plugins/`.
 
-No settings, no permissions — the plugin is active as soon as it loads.
+No permissions; one setting (*Record API usage*, off by default, see [API usage](#api-usage)). Everything else is active as soon as the plugin loads.
 
 ## Grafana dashboard
 

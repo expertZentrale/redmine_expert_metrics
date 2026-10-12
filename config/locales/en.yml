@@ -50,3 +50,6 @@ en:
   field_expert_metrics_last_ip: "Last IP"
   field_expert_metrics_last_path: "Last path"
   field_expert_metrics_key_created_on: "API key created"
+  label_expert_metrics_api_usage_enabled: "Record API usage"
+  text_expert_metrics_api_usage_enabled: "Records every request authenticated by API credentials (daily per user, method, authentication and client, with last IP address and path; kept 90 days) and adds the API series to /metrics. Off: no extra database writes per API request and no API queries on /metrics."
+  text_expert_metrics_api_usage_off: "Recording is switched off (plugin setting \"Record API usage\") - the page shows what was recorded while it was on."

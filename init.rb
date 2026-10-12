@@ -22,6 +22,12 @@ Redmine::Plugin.register :redmine_expert_metrics do
   url 'https://github.com/expertZentrale/redmine_expert_metrics'
   requires_redmine :version_or_higher => '5.0'
 
+  # API usage recording is opt-in: while it is off, API requests cost nothing
+  # extra and /metrics runs no API usage queries. A key missing from the stored
+  # hash (installs older than 1.3.0) reads as off, like the default.
+  settings :default => { 'api_usage_enabled' => '0' },
+           :partial => 'settings/expert_metrics_settings'
+
   # Entry in the administration menu (sidebar + admin overview). It carries the
   # plugin name like the other expert plugins do; a bare functional caption
   # ("Active users") stood among Redmine's own areas without saying which

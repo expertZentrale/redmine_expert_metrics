@@ -10,6 +10,12 @@
 
 <p><%= l(:text_expert_metrics_api_usage_intro, :days => ExpertMetricsApiUsage::RETENTION_DAYS) %></p>
 
+<% unless ExpertMetricsApiUsage.enabled? %>
+  <p class="warning">
+    <%= l(:text_expert_metrics_api_usage_off) %>
+    <%= link_to l(:button_configure), plugin_settings_path(:id => 'redmine_expert_metrics') %>
+  </p>
+<% end %>
 <% unless Setting.rest_api_enabled? %>
   <p class="warning"><%= l(:text_expert_metrics_api_disabled) %></p>
 <% end %>

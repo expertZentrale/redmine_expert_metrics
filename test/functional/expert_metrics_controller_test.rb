@@ -10,6 +10,12 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     Token.where(:action => 'session').delete_all
     ExpertMetricsCounter.delete_all
     ExpertMetricsApiUsage.delete_all
+    # Recording is opt-in; these tests exercise it switched on.
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '1' }
+  end
+
+  def teardown
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
   end
 
   # --- /metrics -----------------------------------------------------------
@@ -170,6 +176,23 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     assert_select 'table.expert-metrics-api-usage td.clients code', :text => 'python-requests/2.32'
     assert_select 'table.expert-metrics-api-usage .expert-metrics-password'
     assert_select 'table.expert-metrics-unused-keys td.username a', :text => 'dlopper'
+  end
+
+  def test_api_usage_page_says_when_recording_is_off
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
+    @request.session[:user_id] = 1
+    get :api_usage
+    assert_response :success
+    assert_select 'p.warning a[href=?]', '/settings/plugin/redmine_expert_metrics'
+  end
+
+  def test_plugin_settings_page_renders_the_switch
+    @request.session[:user_id] = 1
+    @controller = SettingsController.new
+    get :plugin, :params => { :id => 'redmine_expert_metrics' }
+    assert_response :success
+    assert_select 'input[type=checkbox][name=?][checked]', 'settings[api_usage_enabled]'
+    assert_select '#settings_api_usage_enabled', 1
   end
 
   def test_api_usage_falls_back_to_default_period

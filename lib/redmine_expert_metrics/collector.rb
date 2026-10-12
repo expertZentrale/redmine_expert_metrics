@@ -47,6 +47,10 @@ module RedmineExpertMetrics
     def collect
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       now = Time.now
+      # Off: no API queries, the series are left out of /metrics. Stored rows
+      # still age out (one throttled DELETE an hour at most).
+      api_usage_enabled = ExpertMetricsApiUsage.enabled?
+      ExpertMetricsApiUsage.purge_if_due if ExpertMetricsApiUsage.available?
 
       active_users = WINDOWS.each_with_object({}) do |(label, minutes), h|
         h[label] = session_scope.where('updated_on > ?', now - minutes.minutes).distinct.count(:user_id)
@@ -68,9 +72,9 @@ module RedmineExpertMetrics
         'issues_closed'     => Issue.open(false).count,
         'notifications_sent' => notification_counts,
         'helpdesk_mails'    => helpdesk_mail_counts,
-        'api_requests'      => api_request_counts,
-        'api_users'         => api_user_counts,
-        'api_keys'          => api_key_scope.count,
+        'api_requests'      => api_usage_enabled ? api_request_counts : nil,
+        'api_users'         => api_usage_enabled ? api_user_counts : nil,
+        'api_keys'          => api_usage_enabled ? api_key_scope.count : nil,
         'collect_seconds'   => (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(4)
       }
     end
@@ -118,9 +122,6 @@ module RedmineExpertMetrics
     # included). Day granularity - that is what the usage table records.
     def api_user_counts
       return {} unless ExpertMetricsApiUsage.available?
-      # Every /metrics collection also enforces retention, so it does not depend
-      # on API traffic arriving.
-      ExpertMetricsApiUsage.purge_if_due
       today = Date.today
       API_WINDOWS.each_with_object({}) do |(label, days), h|
         h[label] = ExpertMetricsApiUsage.where('day > ?', today - days).distinct.count(:user_id)

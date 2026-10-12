@@ -34,14 +34,14 @@ Then restart Redmine so the plugin is loaded — @touch tmp/restart.txt@ for Pas
 
 h3. 3. Use it
 
-There are no settings and no project module. Administrators find *expert Metrics* in the Administration menu:
+There is no project module. Administrators find *expert Metrics* in the Administration menu:
 
 |_. Page |_. Shows |
 | @/admin/active_users@ (also @.json@) | Who is working right now |
 | @/admin/api_usage@ (also @.json@) | Who uses the REST API, how much and with which client |
 | @/metrics@ | Prometheus text exposition, aggregates only |
 
-API usage is only recorded while *Administration → Settings → API → Enable REST web service* is on — with it off, Redmine accepts no API requests anyway. The JSON variants accept an admin API key (@X-Redmine-API-Key@ header or @?key=@).
+*API usage recording is off by default.* Switch it on under *Administration → Plugins → Redmine expert Metrics → Configure* (_Record API usage_); while it is off, API requests cost nothing extra and @/metrics@ runs no API queries. It also needs *Administration → Settings → API → Enable REST web service* — with it off, Redmine accepts no API requests anyway. The JSON variants accept an admin API key (@X-Redmine-API-Key@ header or @?key=@).
 
 h3. 4. Protect /metrics (optional)
 

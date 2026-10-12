@@ -7,6 +7,12 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
     Rails.cache.delete(RedmineExpertMetrics::Collector::CACHE_KEY)
     ExpertMetricsApiUsage.delete_all
     ExpertMetricsCounter.delete_all
+    # Recording is opt-in; these tests exercise it switched on.
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '1' }
+  end
+
+  def teardown
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
   end
 
   def test_record_creates_then_adds_and_keeps_the_latest_details
@@ -87,6 +93,24 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
     assert_includes text, "redmine_api_keys_total #{RedmineExpertMetrics::Collector.api_key_scope.count}\n"
     assert_not_includes text, User.find(2).login
     assert_not_includes text, 'curl'
+  end
+
+  def test_exposition_leaves_api_series_out_while_switched_off
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
+    data = RedmineExpertMetrics::Collector.collect
+    assert_nil data['api_keys']
+    text = RedmineExpertMetrics::Exposition.render(data, '1.3.0')
+    assert_not_includes text, 'redmine_api_'
+    assert_includes text, 'redmine_active_users'
+  end
+
+  def test_switched_off_still_purges_old_rows
+    Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
+    ExpertMetricsApiUsage.record!(attrs, Time.now - (ExpertMetricsApiUsage::RETENTION_DAYS + 5).days)
+    Rails.cache.delete(ExpertMetricsApiUsage::PURGE_CACHE_KEY)
+
+    RedmineExpertMetrics::Collector.collect
+    assert_equal 0, ExpertMetricsApiUsage.count
   end
 
   def test_key_holders_skip_locked_and_anonymous_users
