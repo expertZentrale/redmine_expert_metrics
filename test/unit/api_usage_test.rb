@@ -144,7 +144,28 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
     assert_equal({ 'key' => 2 }, row[:auth_methods])
   end
 
+  def test_purge_claim_is_taken_once_per_hour
+    with_memory_cache do
+      ExpertMetricsApiUsage.record!(attrs, Time.now - (ExpertMetricsApiUsage::RETENTION_DAYS + 5).days)
+      ExpertMetricsApiUsage.purge_if_due
+      assert_equal 0, ExpertMetricsApiUsage.count
+
+      # Claimed for the hour: a second caller does not delete again.
+      ExpertMetricsApiUsage.record!(attrs, Time.now - (ExpertMetricsApiUsage::RETENTION_DAYS + 5).days)
+      ExpertMetricsApiUsage.purge_if_due
+      assert_equal 1, ExpertMetricsApiUsage.count
+    end
+  end
+
   private
+
+  def with_memory_cache
+    original = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    yield
+  ensure
+    Rails.cache = original
+  end
 
   # Model.sole needs Rails 7 (Redmine 5.1 runs Rails 6.1).
   def sole_row

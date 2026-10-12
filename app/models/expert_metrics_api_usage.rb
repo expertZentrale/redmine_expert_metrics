@@ -56,8 +56,9 @@ class ExpertMetricsApiUsage < ActiveRecord::Base
   # it also runs while nobody uses the API. Never raises: a broken cache store
   # must not take /metrics down with it, and the next healthy call purges.
   def self.purge_if_due
-    return if Rails.cache.read(PURGE_CACHE_KEY)
-    Rails.cache.write(PURGE_CACHE_KEY, true, :expires_in => 1.hour)
+    # unless_exist makes the claim atomic (Redis SET NX, Memcache add): of
+    # several requests or pods arriving after the hour, only one purges.
+    return unless Rails.cache.write(PURGE_CACHE_KEY, true, :expires_in => 1.hour, :unless_exist => true)
     purge!
   rescue StandardError => e
     Rails.logger.warn("redmine_expert_metrics: API usage purge skipped (#{e.class}: #{e.message})")
