@@ -87,7 +87,10 @@ API-Zugangsdaten angemeldet hat:
   letztem Zeitpunkt, der **letzten IP-Adresse** und dem letzten Pfad (ohne Query-String, der den
   Schlüssel enthalten kann). Wechselt ein Admin-Schlüssel den Benutzer (`X-Redmine-Switch-User`),
   wird die Anfrage dem Schlüsselinhaber zugerechnet und der Zielbenutzer angezeigt.
-- **Aufbewahrung**: Zeilen älter als **90 Tage** werden automatisch gelöscht. IP-Adresse und
+- **Aufbewahrung**: Zeilen älter als **90 Tage** werden automatisch gelöscht — bei API-Anfragen,
+  bei jeder `/metrics`-Erhebung und auf der Admin-Seite, höchstens einmal pro Stunde. Ohne
+  regelmäßigen Prometheus-Abruf `bundle exec rake redmine_expert_metrics:purge_api_usage RAILS_ENV=production`
+  per Cron ausführen. IP-Adresse und
   User-Agent sind personenbezogene Daten — das Protokoll in der Datenschutzdokumentation erwähnen.
 - **Kosten**: ein `UPDATE` pro API-Anfrage (plus eines auf der Zählertabelle); ein `INSERT` nur
   für die erste Anfrage eines Tages je Client.

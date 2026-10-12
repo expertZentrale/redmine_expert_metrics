@@ -99,7 +99,55 @@ class RedmineExpertMetricsApiUsageTest < Redmine::ApiTest::Base
     assert_equal 0, ExpertMetricsApiUsage.count
   end
 
+  def test_oauth_token_is_recorded
+    token = oauth_token(2)
+    get '/issues.json', :headers => { 'Authorization' => "Bearer #{token.plaintext_token}" }
+    assert_response :success
+
+    row = sole_row
+    assert_equal 2, row.user_id
+    assert_equal 'oauth', row.auth_method
+    assert_nil row.last_as_user_id
+  end
+
+  def test_oauth_switch_user_is_booked_on_the_token_owner
+    # Switching needs admin, and an OAuth token only acts as admin with that scope.
+    token = oauth_token(1, 'view_issues admin')
+    get '/issues.json', :headers => {
+      'Authorization' => "Bearer #{token.plaintext_token}", 'X-Redmine-Switch-User' => 'jsmith'
+    }
+    assert_response :success
+
+    row = sole_row
+    assert_equal 1, row.user_id
+    assert_equal 'oauth', row.auth_method
+    assert_equal 2, row.last_as_user_id
+  end
+
+  def test_oauth_without_admin_scope_does_not_switch
+    token = oauth_token(1)
+    get '/issues.json', :headers => {
+      'Authorization' => "Bearer #{token.plaintext_token}", 'X-Redmine-Switch-User' => 'jsmith'
+    }
+
+    row = sole_row
+    assert_equal 1, row.user_id
+    assert_nil row.last_as_user_id
+  end
+
   private
+
+  # OAuth (Doorkeeper) ships with Redmine 6.1; built like core's api_test/my_test.rb.
+  def oauth_token(user_id, scopes = 'view_issues')
+    skip 'OAuth needs Redmine 6.1+' unless defined?(::Doorkeeper::AccessToken)
+    application = ::Doorkeeper::Application.create!(
+      :name => 'Metrics test', :redirect_uri => 'http://localhost/callback', :scopes => scopes
+    )
+    ::Doorkeeper::AccessToken.create!(
+      :application_id => application.id, :resource_owner_id => user_id,
+      :scopes => scopes, :expires_in => 7200
+    )
+  end
 
   # Model.sole needs Rails 7 (Redmine 5.1 runs Rails 6.1).
   def sole_row

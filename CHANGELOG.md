@@ -17,7 +17,7 @@
   now records every request core authenticated by API credentials (patch on
   `ApplicationController#find_current_user`), one row per user, day, method, authentication and
   client in the new table `expert_metrics_api_usages` (migration 002). Switch-user requests are
-  booked on the key owner. Rows older than 90 days are deleted automatically; the path is
+  booked on the key owner. Rows older than 90 days are deleted automatically (on API requests, `/metrics` collections and the admin page; `rake redmine_expert_metrics:purge_api_usage` for cron); the path is
   stored without query string so a `?key=` never lands in the table. Recording never fails a
   request.
 - **Prometheus**: `redmine_api_requests_total{method,auth}` (counter), `redmine_api_users{window}`

@@ -30,7 +30,9 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   rows per user, verb, auth and User-Agent (`expert_metrics_api_usages`, atomic UPDATE then
   INSERT like the counter), plus `ExpertMetricsCounter` `api_requests` (`"VERB:auth"`) for
   Prometheus. Switch-user is booked on the key owner; the path is stored without query string;
-  rows are purged after `RETENTION_DAYS` (90). Any error is logged and swallowed.
+  rows are purged after `RETENTION_DAYS` (90) from the request path, `Collector.collect` and the
+  admin page (`purge_if_due`, hourly, never raises), plus `rake redmine_expert_metrics:purge_api_usage`.
+  Any error is logged and swallowed.
 - `lib/redmine_expert_metrics/mail_observer.rb` + `app/models/expert_metrics_counter.rb` –
   `Mail` observer counting core notifications (`X-Mailer: Redmine`, label `X-Redmine-Project`)
   into `expert_metrics_counters`; helpdesk customer mails are read from `helpdesk_messages`

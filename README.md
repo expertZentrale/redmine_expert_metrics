@@ -85,7 +85,9 @@ is used, so the plugin records every request that core authenticated by API cred
   **last IP address** and the last path (without query string, which may carry the key). When an
   admin key switches user (`X-Redmine-Switch-User`), the request is booked on the key owner and
   the switched-to user is shown.
-- **Retention**: rows older than **90 days** are deleted automatically. The IP address and
+- **Retention**: rows older than **90 days** are deleted automatically — on API requests, on every
+  `/metrics` collection and on the admin page, at most once an hour. Without a regular Prometheus
+  scrape, run `bundle exec rake redmine_expert_metrics:purge_api_usage RAILS_ENV=production` from cron. The IP address and
   User-Agent are personal data — mention the log in your privacy documentation.
 - **Cost**: one `UPDATE` per API request (plus one on the counter table); an `INSERT` only for
   the first request of a day per client.

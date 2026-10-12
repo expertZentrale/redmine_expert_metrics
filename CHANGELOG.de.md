@@ -19,7 +19,8 @@
   (Patch auf `ApplicationController#find_current_user`), eine Zeile pro Benutzer, Tag, Methode,
   Anmeldeart und Client in der neuen Tabelle `expert_metrics_api_usages` (Migration 002).
   Switch-User-Anfragen werden dem Schlüsselinhaber zugerechnet. Zeilen älter als 90 Tage werden
-  automatisch gelöscht; der Pfad wird ohne Query-String gespeichert, ein `?key=` landet also nie
+  automatisch gelöscht (bei API-Anfragen, `/metrics`-Erhebungen und auf der Admin-Seite;
+  `rake redmine_expert_metrics:purge_api_usage` für Cron); der Pfad wird ohne Query-String gespeichert, ein `?key=` landet also nie
   in der Tabelle. Die Erfassung lässt nie eine Anfrage scheitern.
 - **Prometheus**: `redmine_api_requests_total{method,auth}` (Counter), `redmine_api_users{window}`
   (`1d`, `7d`, `30d`) und `redmine_api_keys_total` — nur Summen, keine Namen.

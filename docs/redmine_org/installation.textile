@@ -60,7 +60,13 @@ Import @contrib/grafana/redmine-expert-metrics.json@ from the "repository":https
 
 h3. Privacy
 
-The API usage table stores, per user, day, HTTP method, authentication method and client, the request count, the *last IP address*, the User-Agent and the last path. These are personal data: mention them in your privacy documentation. Rows older than 90 days are deleted automatically, and query strings are never stored.
+The API usage table stores, per user, day, HTTP method, authentication method and client, the request count, the *last IP address*, the User-Agent and the last path. These are personal data: mention them in your privacy documentation. Rows older than 90 days are deleted automatically — on API requests, on every @/metrics@ collection and on the admin page. Without a regular Prometheus scrape, run this from cron:
+
+<pre>
+bundle exec rake redmine_expert_metrics:purge_api_usage RAILS_ENV=production
+</pre>
+
+Query strings are never stored.
 
 h3. Upgrading
 
