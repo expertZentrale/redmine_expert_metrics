@@ -101,6 +101,49 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
     assert_not_includes holders.keys, locked.id
   end
 
+  def test_late_insert_race_loser_does_not_move_last_details_back
+    now = Time.now
+    ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.2', :path => '/later.json'), now)
+    # An earlier request that lost the insert race arrives afterwards.
+    ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.1', :path => '/earlier.json'), now - 30.seconds)
+
+    row = sole_row
+    assert_equal 2, row.requests
+    assert_equal '10.0.0.2', row.last_ip
+    assert_equal '/later.json', row.last_path
+    assert_equal now.to_i, row.last_at.to_i
+    assert_equal (now - 30.seconds).to_i, row.first_at.to_i
+  end
+
+  def test_only_explicit_write_methods_count_as_writes
+    %w(GET HEAD OPTIONS POST PUT PATCH DELETE).each do |verb|
+      ExpertMetricsApiUsage.record!(attrs(:http_method => verb))
+    end
+
+    row = RedmineExpertMetrics::Collector.api_usage_details(7)[:users].first
+    assert_equal 7, row[:requests]
+    assert_equal 4, row[:writes]
+  end
+
+  def test_collect_enforces_retention_without_api_traffic
+    ExpertMetricsApiUsage.record!(attrs, Time.now - (ExpertMetricsApiUsage::RETENTION_DAYS + 5).days)
+    Rails.cache.delete(ExpertMetricsApiUsage::PURGE_CACHE_KEY)
+
+    RedmineExpertMetrics::Collector.collect
+    assert_equal 0, ExpertMetricsApiUsage.count
+  end
+
+  def test_details_pick_the_latest_row_across_days_and_clients
+    ExpertMetricsApiUsage.record!(attrs(:user_agent => 'old', :ip => '10.0.0.9'), Time.now - 3.days)
+    ExpertMetricsApiUsage.record!(attrs(:user_agent => 'new', :ip => '10.0.0.1', :as_user_id => 3))
+
+    row = RedmineExpertMetrics::Collector.api_usage_details(7)[:users].first
+    assert_equal '10.0.0.1', row[:last_ip]
+    assert_equal 3, row[:last_as_user].id
+    assert_equal 2, row[:days_active]
+    assert_equal({ 'key' => 2 }, row[:auth_methods])
+  end
+
   private
 
   # Model.sole needs Rails 7 (Redmine 5.1 runs Rails 6.1).

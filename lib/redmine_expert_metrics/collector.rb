@@ -115,6 +115,9 @@ module RedmineExpertMetrics
     # included). Day granularity - that is what the usage table records.
     def api_user_counts
       return {} unless ExpertMetricsApiUsage.available?
+      # Every /metrics collection also enforces retention, so it does not depend
+      # on API traffic arriving.
+      ExpertMetricsApiUsage.purge_if_due
       today = Date.today
       API_WINDOWS.each_with_object({}) do |(label, days), h|
         h[label] = ExpertMetricsApiUsage.where('day > ?', today - days).distinct.count(:user_id)
@@ -128,35 +131,62 @@ module RedmineExpertMetrics
       empty = { :users => [], :unused_keys => api_key_holders.values }
       return empty unless ExpertMetricsApiUsage.available?
 
-      rows = ExpertMetricsApiUsage.where('day > ?', Date.today - days).to_a
-      key_holders = api_key_holders
-      users = User.where(:id => rows.map(&:user_id).uniq).index_by(&:id)
-      as_users = User.where(:id => rows.map(&:last_as_user_id).compact.uniq).index_by(&:id)
+      ExpertMetricsApiUsage.purge_if_due
+      scope = ExpertMetricsApiUsage.where('expert_metrics_api_usages.day > ?', Date.today - days)
+      # Aggregated in SQL: the period may span many day/client rows per user.
+      writes_sql = ExpertMetricsApiUsage.sanitize_sql_array(
+        ['SUM(CASE WHEN http_method IN (?) THEN requests ELSE 0 END)', ExpertMetricsApiUsage::WRITE_METHODS]
+      )
+      totals = scope.group(:user_id).pluck(:user_id, Arel.sql('SUM(requests)'), Arel.sql(writes_sql),
+                                           Arel.sql('COUNT(DISTINCT day)'))
+      return empty if totals.empty?
 
-      details = rows.group_by(&:user_id).map do |user_id, user_rows|
+      methods = grouped_sums(scope, :http_method)
+      auths = grouped_sums(scope, :auth_method)
+      clients = grouped_sums(scope, :user_agent)
+      latest = latest_rows(scope)
+      key_holders = api_key_holders
+      users = User.where(:id => totals.map(&:first)).index_by(&:id)
+      as_users = User.where(:id => latest.values.map(&:last_as_user_id).compact.uniq).index_by(&:id)
+
+      details = totals.map do |user_id, requests, writes, days_active|
         user = users[user_id]
-        next if user.nil?
-        latest = user_rows.max_by { |row| row.last_at.to_f }
-        clients = Hash.new(0)
-        user_rows.each { |row| clients[row.user_agent] += row.requests }
+        row = latest[user_id]
+        next if user.nil? || row.nil?
         {
           :user           => user,
           :key_created_on => key_holders[user_id] && key_holders[user_id][:key_created_on],
-          :requests       => user_rows.sum(&:requests),
-          :writes         => user_rows.reject { |row| ExpertMetricsApiUsage::READ_METHODS.include?(row.http_method) }.sum(&:requests),
-          :methods        => sum_by(user_rows, &:http_method),
-          :auth_methods   => sum_by(user_rows, &:auth_method),
-          :days_active    => user_rows.map(&:day).uniq.size,
-          :clients        => clients.sort_by { |ua, count| [-count, ua] }.to_h,
-          :last_used      => latest.last_at,
-          :last_ip        => latest.last_ip,
-          :last_path      => latest.last_path,
-          :last_as_user   => as_users[latest.last_as_user_id]
+          :requests       => requests.to_i,
+          :writes         => writes.to_i,
+          :methods        => methods[user_id].sort.to_h,
+          :auth_methods   => auths[user_id].sort.to_h,
+          :days_active    => days_active.to_i,
+          :clients        => clients[user_id].sort_by { |ua, count| [-count, ua] }.to_h,
+          :last_used      => row.last_at,
+          :last_ip        => row.last_ip,
+          :last_path      => row.last_path,
+          :last_as_user   => as_users[row.last_as_user_id]
         }
       end.compact.sort_by { |row| -row[:last_used].to_f }
 
       used = details.map { |row| row[:user].id }
       { :users => details, :unused_keys => key_holders.except(*used).values }
+    end
+
+    # { user_id => { value => requests } } for one column.
+    def grouped_sums(scope, column)
+      scope.group(:user_id, column).sum(:requests).each_with_object(Hash.new { |h, k| h[k] = {} }) do |((user_id, value), count), h|
+        h[user_id][value.to_s] = count.to_i
+      end
+    end
+
+    # { user_id => most recently used row } - one row per user, via a join on
+    # the per-user MAX(last_at) instead of loading every row.
+    def latest_rows(scope)
+      newest = scope.group(:user_id).select('user_id AS latest_user_id, MAX(last_at) AS latest_at')
+      scope.joins("INNER JOIN (#{newest.to_sql}) latest ON latest.latest_user_id = expert_metrics_api_usages.user_id" \
+                  ' AND latest.latest_at = expert_metrics_api_usages.last_at')
+           .to_a.index_by(&:user_id)
     end
 
     # API keys core would accept: User.find_by_api_key only resolves active
@@ -173,10 +203,6 @@ module RedmineExpertMetrics
       User.where(:id => tokens.keys).sort_by { |user| user.login.to_s.downcase }.each_with_object({}) do |user, h|
         h[user.id] = { :user => user, :key_created_on => tokens[user.id] }
       end
-    end
-
-    def sum_by(rows)
-      rows.each_with_object(Hash.new(0)) { |row, h| h[yield(row)] += row.requests }.sort.to_h
     end
 
     # One row per user with a session request in the last +minutes+ minutes,

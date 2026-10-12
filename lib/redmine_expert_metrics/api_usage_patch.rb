@@ -64,8 +64,16 @@ module RedmineExpertMetrics
           ['basic', user]
         end
       else
-        ['oauth', user]
+        ['oauth', switched ? expert_metrics_oauth_owner : user]
       end
+    end
+
+    # Resource owner of the OAuth bearer token (Redmine 6.1+). Core has already
+    # replaced it with the switched-to user, so resolve the token again.
+    def expert_metrics_oauth_owner
+      return nil unless defined?(::Doorkeeper)
+      token = ::Doorkeeper.authenticate(request)
+      token && User.find_by_id(token.resource_owner_id)
     end
 
     # Core only replaces the user when the header names an active user and the

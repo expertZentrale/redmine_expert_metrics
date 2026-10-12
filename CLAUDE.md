@@ -83,4 +83,23 @@ A final step asks the plugin website (`expertZentrale/redmine-plugins`) to rebui
 read/write on that repo only); without it the site catches up on its weekly cron, and the step
 never fails a release.
 
+**Every release must also update `docs/redmine_org/`** — the copy-paste sources for the listing
+at <https://www.redmine.org/plugins/redmine_expert_metrics>. That directory renders **Textile**,
+not Markdown (`h3.` headings, `*bold*`, `@code@`, `"label":url`), so these files are written in
+Textile and are pasted in unedited. Description and installation notes are **separate fields**
+there — keep them split. Part of the release commit, not an afterthought:
+
+- `docs/redmine_org/releases/<version>.textile` — new file per release. User-facing changes only;
+  the CHANGELOG is the source but this is not a copy of it. House shape:
+  `h3. redmine_expert_metrics <version> — <YYYY-MM-DD>`, then `h4. Added`/`Changed`/`Fixed`, always
+  closing with `h4. Upgrade notes` (say "No migrations. Replace the plugin directory and restart."
+  when that is all it takes).
+- `docs/redmine_org/description.textile` — what the plugin *is*; update when a release adds a
+  feature, a metric or a page, and bump the Redmine versions under *Requirements* when they move.
+  **This one drifts silently**: read it end to end against the CHANGELOG since the last tag.
+- `docs/redmine_org/installation.textile` — update when a step changes (new migration, new
+  `configuration.yml` key, new endpoint, new gem).
+
+`docs/redmine_org/README.md` is the full checklist. `docs/` is excluded from the release archives.
+
 `.github/copilot-instructions.md` mirrors this file — keep both in sync.

@@ -1,0 +1,76 @@
+h3. Requirements
+
+* Redmine 5.1.x, 6.0.x, 6.1.x or 7.0.x
+* No extra gems
+
+Every release is tested against Redmine 5.1, 6.0, 6.1 and 7.0 on a clean MariaDB, and additionally booted inside the official @redmine@ Docker images for the same versions.
+
+h3. 1. Install the plugin
+
+Download @redmine_expert_metrics-<version>.zip@ (or @.tar.gz@) from the "Releases":https://github.com/expertZentrale/redmine_expert_metrics/releases page. The archive already contains a top-level @redmine_expert_metrics/@ folder, so extract it directly into your Redmine @plugins/@ directory:
+
+<pre>
+cd /path/to/redmine/plugins
+unzip redmine_expert_metrics-<version>.zip
+</pre>
+
+Alternatively, from source:
+
+<pre>
+cd /path/to/redmine/plugins
+git clone https://github.com/expertZentrale/redmine_expert_metrics.git
+</pre>
+
+h3. 2. Run the migrations
+
+Two small tables: a counter table (notification mails, API requests) and the daily API usage table.
+
+<pre>
+cd /path/to/redmine
+bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
+</pre>
+
+Then restart Redmine so the plugin is loaded — @touch tmp/restart.txt@ for Passenger, or restart the Puma/Unicorn service.
+
+h3. 3. Use it
+
+There are no settings and no project module. Administrators find *expert Metrics* in the Administration menu:
+
+|_. Page |_. Shows |
+| @/admin/active_users@ (also @.json@) | Who is working right now |
+| @/admin/api_usage@ (also @.json@) | Who uses the REST API, how much and with which client |
+| @/metrics@ | Prometheus text exposition, aggregates only |
+
+API usage is only recorded while *Administration → Settings → API → Enable REST web service* is on — with it off, Redmine accepts no API requests anyway. The JSON variants accept an admin API key (@X-Redmine-API-Key@ header or @?key=@).
+
+h3. 4. Protect /metrics (optional)
+
+@/metrics@ is open by default; it carries aggregate numbers only. To require a token, set it in @config/configuration.yml@ and restart:
+
+<pre>
+production:
+  metrics_token: "change-me"
+</pre>
+
+Prometheus then sends @Authorization: Bearer <token>@ (or @?token=<token>@). Administrators — session or API key — always get through. The endpoint works even when *Authentication required* is switched on.
+
+h3. 5. Grafana (optional)
+
+Import @contrib/grafana/redmine-expert-metrics.json@ from the "repository":https://github.com/expertZentrale/redmine_expert_metrics under *Dashboards → New → Import* and pick your Prometheus datasource — nothing else needs editing.
+
+h3. Privacy
+
+The API usage table stores, per user, day, HTTP method, authentication method and client, the request count, the *last IP address*, the User-Agent and the last path. These are personal data: mention them in your privacy documentation. Rows older than 90 days are deleted automatically, and query strings are never stored.
+
+h3. Upgrading
+
+Replace the plugin directory with the new version, run the migration command from step 2 again and restart. If a release needs anything beyond that it is called out in that version's notes.
+
+h3. Uninstalling
+
+<pre>
+bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics VERSION=0 RAILS_ENV=production
+rm -rf plugins/redmine_expert_metrics
+</pre>
+
+This drops the counter and API usage tables. The plugin writes nothing else.

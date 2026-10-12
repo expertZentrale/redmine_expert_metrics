@@ -1,0 +1,30 @@
+h3. What it does
+
+Shows who is working in Redmine *right now*, who uses the *REST API* and with which client, and exposes that, plus a few basic totals, as Prometheus metrics. Built for two questions: "can I take the instance down for maintenance?" and "who is changing data through the API?" — the second one becoming pressing as more and more people run AI-generated scripts with their personal API keys.
+
+No settings, no permissions, no extra gems.
+
+h3. Features
+
+* *Active users* (_Administration → expert Metrics_) — every user with at least one request in the last 60 minutes, most recent first, with last activity, login time and number of sessions; a summary of active users over 5 / 15 / 60 minutes, live sessions and logins in the last 24 hours. Derived from Redmine's own session tokens, so it works with any session store and is the same on every pod. Also as JSON for admin scripts.
+* *API usage* (_Administration → expert Metrics → API usage_) — Redmine itself keeps no record of when an API key is used, so the plugin records every request authenticated by API credentials: per user the number of requests, how many of them wrote data (POST, PUT, PATCH, DELETE), the authentication method (API key, API key as HTTP Basic user, login and password via HTTP Basic — highlighted, OAuth), the clients by User-Agent, the last IP address and path, and when the key was created. A second table lists users who hold an API key that was not used in the period. Periods of today, 7, 30 and 90 days; also as JSON.
+* *Privacy by design* — usage is stored as daily aggregates per user and client, never as a per-request log; the path is stored without query string, so a @?key=@ never lands in the table; rows older than 90 days are deleted automatically.
+* *Prometheus endpoint* (@GET /metrics@) — aggregates only, never user names: active users per window, sessions, logins, accounts by status, active projects, open and closed issues, notification mails delivered by core per project, helpdesk mails per project and direction (with "redmine_expert_helpdesk":https://www.redmine.org/plugins/redmine_expert_helpdesk), API requests by method and authentication, distinct API users per window, API key holders. Optionally protected by a bearer token; works with "Authentication required" switched on.
+* *Grafana dashboard* — ready to import, bound to a datasource variable, with rows for activity, accounts and issues, mail volume, REST API and scrape health.
+* *Multi-pod ready* — every replica reports the same database-wide numbers, and a 15-second cache keeps frequent scrapes cheap.
+
+h3. Requirements
+
+* Redmine 5.1.x, 6.0.x, 6.1.x or 7.0.x
+
+h3. Links
+
+* "Source and releases":https://github.com/expertZentrale/redmine_expert_metrics
+* "Documentation (English)":https://github.com/expertZentrale/redmine_expert_metrics/blob/main/README.md
+* "Dokumentation (Deutsch)":https://github.com/expertZentrale/redmine_expert_metrics/blob/main/README.de.md
+* "Changelog":https://github.com/expertZentrale/redmine_expert_metrics/blob/main/CHANGELOG.md
+* "Issues":https://github.com/expertZentrale/redmine_expert_metrics/issues
+
+h3. License
+
+GNU General Public License, version 2 or later — the same license Redmine itself uses.

@@ -1920,7 +1920,7 @@
       "id": 25,
       "type": "timeseries",
       "title": "API requests per hour by method",
-      "description": "Requests authenticated by API credentials, by HTTP method. POST, PUT, PATCH and DELETE change data.\n\nCumulative counter: the rate is taken per scrape target first and only then reduced with `max`, so a pod that starts mid-range cannot distort the result.",
+      "description": "Requests authenticated by API credentials, by HTTP method. POST, PUT, PATCH and DELETE change data.\n\nCumulative counter: the rate is taken per scrape target first, deduplicated across pods with `max` per method and auth, and only then summed, so a pod that starts mid-range cannot distort the result.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -2006,7 +2006,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (method) (rate(redmine_api_requests_total{job=~\"$job\"}[$__rate_interval])) * 3600",
+          "expr": "sum by (method) (max by (method, auth) (rate(redmine_api_requests_total{job=~\"$job\"}[$__rate_interval]))) * 3600",
           "range": true,
           "instant": false,
           "refId": "A",
@@ -2019,7 +2019,7 @@
       "id": 26,
       "type": "timeseries",
       "title": "API requests per hour by authentication",
-      "description": "key = X-Redmine-API-Key header or key parameter, basic = API key as HTTP Basic user name, password = login and password via HTTP Basic (scripts storing a password), oauth = OAuth token.\n\nCumulative counter: the rate is taken per scrape target first and only then reduced with `max`, so a pod that starts mid-range cannot distort the result.",
+      "description": "key = X-Redmine-API-Key header or key parameter, basic = API key as HTTP Basic user name, password = login and password via HTTP Basic (scripts storing a password), oauth = OAuth token.\n\nCumulative counter: the rate is taken per scrape target first, deduplicated across pods with `max` per method and auth, and only then summed, so a pod that starts mid-range cannot distort the result.",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
