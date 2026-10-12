@@ -14,7 +14,7 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
     ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.1', :path => '/issues.json'), first)
     ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.2', :path => '/projects.json'))
 
-    row = ExpertMetricsApiUsage.sole
+    row = sole_row
     assert_equal 2, row.requests
     assert_equal '10.0.0.2', row.last_ip
     assert_equal '/projects.json', row.last_path
@@ -35,7 +35,7 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
     ExpertMetricsApiUsage.record!(attrs(:user_agent => 'x' * 400))
     ExpertMetricsApiUsage.record!(attrs(:user_agent => 'x' * 500))
 
-    row = ExpertMetricsApiUsage.sole
+    row = sole_row
     assert_equal 255, row.user_agent.size
     assert_equal 2, row.requests
   end
@@ -102,6 +102,12 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
   end
 
   private
+
+  # Model.sole needs Rails 7 (Redmine 5.1 runs Rails 6.1).
+  def sole_row
+    assert_equal 1, ExpertMetricsApiUsage.count
+    ExpertMetricsApiUsage.first
+  end
 
   def attrs(overrides = {})
     { :user_id => 2, :http_method => 'GET', :auth_method => 'key', :user_agent => 'curl/8',

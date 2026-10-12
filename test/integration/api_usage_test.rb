@@ -19,7 +19,7 @@ class RedmineExpertMetricsApiUsageTest < Redmine::ApiTest::Base
     }
     assert_response :success
 
-    row = ExpertMetricsApiUsage.sole
+    row = sole_row
     assert_equal 2, row.user_id
     assert_equal 'GET', row.http_method
     assert_equal 'key', row.auth_method
@@ -36,7 +36,7 @@ class RedmineExpertMetricsApiUsageTest < Redmine::ApiTest::Base
     get "/issues.json?key=#{key}"
     get "/issues.json?key=#{key}"
 
-    row = ExpertMetricsApiUsage.sole
+    row = sole_row
     assert_equal 2, row.requests
     assert_equal '/issues.json', row.last_path
     assert_not_includes row.last_path, key
@@ -64,7 +64,7 @@ class RedmineExpertMetricsApiUsageTest < Redmine::ApiTest::Base
     }
     assert_response :success
 
-    row = ExpertMetricsApiUsage.sole
+    row = sole_row
     assert_equal 1, row.user_id
     assert_equal 2, row.last_as_user_id
   end
@@ -97,5 +97,13 @@ class RedmineExpertMetricsApiUsageTest < Redmine::ApiTest::Base
     get '/issues.json', :headers => { 'X-Redmine-API-Key' => User.find(2).api_key }
 
     assert_equal 0, ExpertMetricsApiUsage.count
+  end
+
+  private
+
+  # Model.sole needs Rails 7 (Redmine 5.1 runs Rails 6.1).
+  def sole_row
+    assert_equal 1, ExpertMetricsApiUsage.count
+    ExpertMetricsApiUsage.first
   end
 end
