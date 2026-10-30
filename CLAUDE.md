@@ -42,7 +42,8 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   `ApplicationController#process_action`, skips `/metrics` itself) opens a `Performance::Stats` in
   a thread-local per request; the `sql.active_record` / `process_action.action_controller`
   subscribers (attached only while the setting is on: `Performance.sync_subscriptions`, called by
-  every request with the setting it read) and `HookTimingPatch` (prepended to
+  every request with the setting it read; the `perform.active_job` one stays attached from init.rb,
+  `install_job_subscriber!`, so job-only processes record jobs too) and `HookTimingPatch` (prepended to
   `Redmine::Hook.singleton_class`, re-implements core's 5-line `call_hook` loop to time each
   listener) add to it; `finish_request` books it into `Performance::REGISTRY` under one lock,
   sets `Server-Timing` for admins and writes an `ExpertMetricsSlowRequest` over the threshold

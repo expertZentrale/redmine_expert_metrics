@@ -9,8 +9,8 @@
 ### Added
 
 - **Performance metrics**, **opt-in** via the new plugin setting *Record performance metrics* (off
-  by default; while off, no instrumentation subscriber is attached, a request costs one setting
-  lookup and a hook call one thread-local check, and `/metrics` leaves the series out; switching it
+  by default; while off, no SQL or request subscriber is attached, a request costs one setting
+  lookup, a hook call one thread-local check and a background job one setting lookup, and `/metrics` leaves the series out; switching it
   takes effect in each process with its next request).
   Every controller request is timed (`RequestTimingPatch` on `ApplicationController#process_action`)
   together with the time spent in SQL (`sql.active_record`), in views

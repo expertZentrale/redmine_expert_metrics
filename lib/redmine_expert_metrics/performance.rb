@@ -10,9 +10,12 @@ require 'socket'
 # Per request, RequestTimingPatch opens a Stats object in a thread-local slot.
 # The sql.active_record and process_action subscribers and HookTimingPatch add
 # to it while it is open, so nothing is recorded for work outside a request.
-# The subscribers are attached only while the setting is on (sync_subscriptions,
-# called by every request): switched off, SQL statements run no callback of
-# ours, and a hook call costs HookTimingPatch one thread-local check.
+# The SQL and request subscribers are attached only while the setting is on
+# (sync_subscriptions, called by every request): switched off, SQL statements
+# run no callback of ours, and a hook call costs HookTimingPatch one
+# thread-local check. The job subscriber stays attached (install_job_subscriber!,
+# from init.rb): jobs are rare, it checks the setting itself, and a process that
+# only runs jobs never passes through a request to attach it.
 # When the request ends, finish_request books it into the in-process Registry
 # with one lock, sends a Server-Timing header to admins and stores requests
 # over the threshold as ExpertMetricsSlowRequest rows.
@@ -176,10 +179,18 @@ module RedmineExpertMetrics
         stats.view_ms = payload[:view_runtime]
       end
 
-      subscribers << ActiveSupport::Notifications.subscribe('perform.active_job') do |_name, started, finished, _id, payload|
-        record_job(payload, finished - started)
-      end
       subscribers
+    end
+
+    # Once per process; init.rb runs again on every dev reload.
+    def install_job_subscriber!
+      return if @job_subscriber
+
+      SUBSCRIBE_LOCK.synchronize do
+        @job_subscriber ||= ActiveSupport::Notifications.subscribe('perform.active_job') do |_name, started, finished, _id, payload|
+          record_job(payload, finished - started)
+        end
+      end
     end
 
     def start_request

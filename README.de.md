@@ -144,8 +144,9 @@ lässt sich nicht über Wochen als Kurve zeichnen.
 
 **Die Erfassung ist standardmäßig aus.** Einschalten unter *Administration → Plugins → Redmine
 expert Metrics → Konfigurieren* (*Performance-Metriken erfassen*). Solange sie aus ist, hängt kein
-Instrumentierungs-Abonnent: Eine Anfrage kostet einen Einstellungs-Lesezugriff, ein Plugin-Hook-Aufruf
-eine Thread-lokale Prüfung, und `/metrics` lässt die Reihen weg. Ein- und Ausschalten wirkt in jedem
+SQL- oder Anfrage-Abonnent: Eine Anfrage kostet einen Einstellungs-Lesezugriff, ein Plugin-Hook-Aufruf
+eine Thread-lokale Prüfung, ein Hintergrundjob einen Einstellungs-Lesezugriff, und `/metrics` lässt
+die Reihen weg. Ein- und Ausschalten wirkt in jedem
 Prozess mit dessen nächster Anfrage.
 
 - **Je Anfrage**: Das Plugin umschließt jede Controller-Aktion und hört auf die Instrumentierung
@@ -159,7 +160,9 @@ Prozess mit dessen nächster Anfrage.
   das Gegenteil der datenbankweiten Reihen oben. Ein Neustart beginnt bei null; `rate()` und
   `increase()` kommen damit zurecht. Mehrere Puma-*Worker* pro Pod (Cluster-Modus) würden jeweils
   nur ihre eigenen Anfragen zählen, aber nur einer beantwortet die Abfrage; Puma im Single-Modus
-  betreiben (wie das offizielle Docker-Image) oder jeden Worker abfragen.
+  betreiben (wie das offizielle Docker-Image) oder jeden Worker abfragen. Hintergrundjobs zählt der
+  Prozess, der sie ausführt — mit Redmines Standard-Adapter (`async`, im Prozess) ist das der
+  Web-Prozess; ein eigener Job-Worker ohne Webserver erfasst sie, lässt sich aber nicht abfragen.
 - **Langsame Anfragen**: Eine Anfrage, die mindestens die *Schwelle für langsame Anfragen*
   (Standard 2000 ms) dauert, wird mit ihrer Aufschlüsselung in `expert_metrics_slow_requests`
   gespeichert und als eine `warn`-Zeile mit ihrer Request-ID geloggt. SQL-Anweisungen werden mit

@@ -138,9 +138,9 @@ database or the views, Redmine itself or one of the plugins. Core logs a timing 
 but production installations usually log at `warn`, and a log line cannot be graphed over weeks.
 
 **Recording is off by default.** Switch it on under *Administration → Plugins → Redmine expert
-Metrics → Configure* (*Record performance metrics*). While it is off, no instrumentation
+Metrics → Configure* (*Record performance metrics*). While it is off, no SQL or request
 subscriber is attached: a request costs one setting lookup, a plugin hook call one thread-local
-check, and `/metrics` leaves the series out. Switching it on or off takes effect in each process
+check, a background job one setting lookup, and `/metrics` leaves the series out. Switching it on or off takes effect in each process
 with its next request.
 
 - **Per request**: the plugin wraps every controller action and listens to Rails' own
@@ -154,7 +154,9 @@ with its next request.
   the database-wide series above. A restart starts at zero; `rate()` and `increase()` handle that.
   Several Puma *workers* per pod (cluster mode) would each count only their own requests, but only
   one of them answers a scrape; run Puma in single mode (the official Docker image does) or scrape
-  each worker.
+  each worker. Background jobs are counted by the process that runs them — with Redmine's default
+  in-process (`async`) adapter that is the web process; a separate job worker without a web server
+  records them but cannot be scraped.
 - **Slow requests**: a request that takes at least *Slow request threshold* (default 2000 ms) is
   stored in `expert_metrics_slow_requests` with its breakdown and logged as one `warn` line with
   its request id. SQL statements are stored with their literal values replaced by `?` (single- and,

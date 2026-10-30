@@ -69,8 +69,10 @@ unless ApplicationController.ancestors.include?(RedmineExpertMetrics::ApiUsagePa
 end
 
 # Performance metrics (opt-in, see Performance). Same reasoning as above: patch
-# directly, guarded. The notification subscribers are attached by the first
-# request that finds the setting on (Performance.sync_subscriptions).
+# directly, guarded. The SQL and request subscribers are attached by the first
+# request that finds the setting on (Performance.sync_subscriptions); the job
+# subscriber is attached here, so job-only processes record jobs as well.
+RedmineExpertMetrics::Performance.install_job_subscriber!
 unless ApplicationController.ancestors.include?(RedmineExpertMetrics::RequestTimingPatch)
   ApplicationController.prepend(RedmineExpertMetrics::RequestTimingPatch)
 end

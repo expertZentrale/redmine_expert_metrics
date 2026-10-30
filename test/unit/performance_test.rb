@@ -169,13 +169,13 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
 
   def test_jobs_are_timed_only_while_enabled
     job = ActiveJob::Base.new
-    Setting.plugin_redmine_expert_metrics = { 'performance_metrics_enabled' => '0' }
+    # Attached at boot, independent of requests: job-only processes have none.
     Performance.sync_subscriptions(false)
+    Setting.plugin_redmine_expert_metrics = { 'performance_metrics_enabled' => '0' }
     ActiveSupport::Notifications.instrument('perform.active_job', :job => job) {}
     assert_nil Performance::REGISTRY.snapshot[:histograms]['redmine_job_duration_seconds']
 
     Setting.plugin_redmine_expert_metrics = { 'performance_metrics_enabled' => '1' }
-    Performance.sync_subscriptions(true)
     ActiveSupport::Notifications.instrument('perform.active_job', :job => job, :exception_object => RuntimeError.new) {}
     snapshot = Performance::REGISTRY.snapshot
     labels = { 'job_class' => 'ActiveJob::Base' }
