@@ -169,6 +169,9 @@ class RedmineExpertMetricsPerformanceIntegrationTest < Redmine::IntegrationTest
 
       timing = server_timing
       assert_operator timing['db'], :>=, 200, "log level #{log_level}"
+      # Rendering /projects takes more than its SQL; zero would mean the render
+      # was never timed (e.g. Rails no longer calls cleanup_view_runtime).
+      assert_operator timing['view'], :>, 0, "log level #{log_level}: #{response.headers['Server-Timing']}"
       assert_operator timing['view'] + timing['db'], :<=, timing['app'] + 1,
                       "log level #{log_level}: #{response.headers['Server-Timing']}"
     end
