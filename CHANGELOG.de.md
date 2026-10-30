@@ -17,6 +17,10 @@
   Ticketseite mit 2537 ms SQL zeigte 2722 ms Ansichten von 2797 ms gesamt). `RequestTimingPatch`
   misst das Rendern jetzt selbst und zieht das dabei gezählte SQL ab, unabhängig vom Log-Level.
   Datenbank-, Hook- und Gesamtzeit waren immer richtig.
+- Die Dauer von SQL-Anweisungen und Hintergrundjobs kommt aus der monotonen Uhr
+  (`ActiveSupport::Notifications.monotonic_subscribe`) statt aus `Time.now`; ein Stellen der
+  Systemuhr während einer Anfrage verfälscht sie nicht mehr, und unter der eingefrorenen Uhr der
+  Redmine-Testsuite (ab 6.1) bleiben sie messbar statt 0.
 
 ### Geändert
 

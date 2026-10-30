@@ -167,9 +167,13 @@ module RedmineExpertMetrics
       end
     end
 
+    # Timed subscribers get monotonic seconds (monotonic_subscribe, Rails 6.1+):
+    # plain subscribe hands over Time.now, which stands still under a frozen
+    # clock (Redmine's tests travel_to a fixed time since 6.1) and jumps when
+    # the system clock is adjusted.
     def subscribe_all
       subscribers = []
-      subscribers << ActiveSupport::Notifications.subscribe('sql.active_record') do |_name, started, finished, _id, payload|
+      subscribers << ActiveSupport::Notifications.monotonic_subscribe('sql.active_record') do |_name, started, finished, _id, payload|
         stats = current
         next if stats.nil? || IGNORED_SQL_NAMES.include?(payload[:name])
         begin
@@ -195,7 +199,7 @@ module RedmineExpertMetrics
       return if @job_subscriber
 
       SUBSCRIBE_LOCK.synchronize do
-        @job_subscriber ||= ActiveSupport::Notifications.subscribe('perform.active_job') do |_name, started, finished, _id, payload|
+        @job_subscriber ||= ActiveSupport::Notifications.monotonic_subscribe('perform.active_job') do |_name, started, finished, _id, payload|
           record_job(payload, finished - started)
         end
       end

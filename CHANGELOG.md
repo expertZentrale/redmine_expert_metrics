@@ -16,6 +16,10 @@
   and the `Server-Timing` header (an issue page with 2537 ms in SQL showed 2722 ms of views out of
   2797 ms). `RequestTimingPatch` now times the render itself and subtracts the SQL it counted
   meanwhile, whatever the log level. Database, hook and total times were always right.
+- SQL statement and background-job durations come from the monotonic clock
+  (`ActiveSupport::Notifications.monotonic_subscribe`) instead of `Time.now`, so an adjustment of
+  the system clock during a request can no longer distort them, and they stay measurable under
+  the frozen clock of Redmine's own test suite (6.1+), where they read 0.
 
 ### Changed
 
