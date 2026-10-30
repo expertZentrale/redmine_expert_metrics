@@ -23,7 +23,7 @@ git clone https://github.com/expertZentrale/redmine_expert_metrics.git
 
 h3. 2. Run the migrations
 
-Two small tables: a counter table (notification mails, API requests) and the daily API usage table.
+Three small tables: a counter table (notification mails, API requests), the daily API usage table and the slow-request table.
 
 <pre>
 cd /path/to/redmine
@@ -39,9 +39,12 @@ There is no project module. Administrators find *expert Metrics* in the Administ
 |_. Page |_. Shows |
 | @/admin/active_users@ (also @.json@) | Who is working right now |
 | @/admin/api_usage@ (also @.json@) | Who uses the REST API, how much and with which client |
+| @/admin/slow_requests@ (also @.json@) | Requests over the slow-request threshold, with database, view, hook and SQL breakdown |
 | @/metrics@ | Prometheus text exposition, aggregates only |
 
 *API usage recording is off by default.* Switch it on under *Administration → Plugins → Redmine expert Metrics → Configure* (_Record API usage_); while it is off, API requests cost nothing extra and @/metrics@ runs no API queries. It also needs *Administration → Settings → API → Enable REST web service* — with it off, Redmine accepts no API requests anyway. The JSON variants accept an admin API key (@X-Redmine-API-Key@ header or @?key=@).
+
+*Performance metrics are off by default* as well (_Record performance metrics_, same page). While on, @/metrics@ also carries per-process request, hook, job and memory series — Prometheus has to scrape every pod for them, and dashboards add them up with @sum@ — and requests slower than _Slow request threshold_ (2000 ms) are listed under _Slow requests_.
 
 h3. 4. Protect /metrics (optional)
 
@@ -66,6 +69,8 @@ The API usage table stores, per user, day, HTTP method, authentication method an
 bundle exec rake redmine_expert_metrics:purge_api_usage RAILS_ENV=production
 </pre>
 
+The slow-request table (performance metrics on) stores user, path and timing of slow requests, with SQL values removed, and is purged after 14 days.
+
 Query strings are never stored.
 
 h3. Upgrading
@@ -79,4 +84,4 @@ bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics VERSION=0 R
 rm -rf plugins/redmine_expert_metrics
 </pre>
 
-This drops the counter and API usage tables. The plugin writes nothing else.
+This drops the counter, API usage and slow-request tables. The plugin writes nothing else.

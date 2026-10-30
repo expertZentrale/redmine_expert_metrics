@@ -7,6 +7,9 @@
 #                             for scripts (admin session or admin API key).
 # * GET /admin/api_usage    - who uses the REST API, how much and with which
 #                             client; HTML and JSON, admins only.
+# * GET /admin/slow_requests - requests over the slow-request threshold with
+#                             their database/view/hook breakdown; HTML and
+#                             JSON, admins only.
 class ExpertMetricsController < ApplicationController
   layout 'admin'
   self.main_menu = false
@@ -20,8 +23,8 @@ class ExpertMetricsController < ApplicationController
                      :only => :prometheus, :raise => false
 
   before_action :authorize_prometheus, :only => :prometheus
-  before_action :require_admin, :only => [:active_users, :api_usage]
-  accept_api_auth :active_users, :api_usage
+  before_action :require_admin, :only => [:active_users, :api_usage, :slow_requests]
+  accept_api_auth :active_users, :api_usage, :slow_requests
 
   # Minutes the admin page looks back for the per-user list.
   DETAILS_WINDOW = 60
@@ -29,11 +32,23 @@ class ExpertMetricsController < ApplicationController
   # Selectable periods (calendar days) of the API usage page; first is default.
   API_USAGE_DAYS = [7, 1, 30, ExpertMetricsApiUsage::RETENTION_DAYS].freeze
 
+  # Selectable periods of the slow-request page; first is default.
+  SLOW_REQUEST_DAYS = [1, 7, ExpertMetricsSlowRequest::RETENTION_DAYS].freeze
+  # Rows listed on the slow-request page, newest first.
+  SLOW_REQUEST_LIMIT = 200
+
   def prometheus
     body = RedmineExpertMetrics::Exposition.render(
       RedmineExpertMetrics::Collector.snapshot,
       Redmine::Plugin.find(:redmine_expert_metrics).version
     )
+    # Per process, so appended after the shared (cached) snapshot.
+    if RedmineExpertMetrics::Performance.enabled?
+      body += RedmineExpertMetrics::Exposition.render_performance(
+        RedmineExpertMetrics::Performance::REGISTRY.snapshot,
+        RedmineExpertMetrics::Performance.process_stats
+      )
+    end
     response.headers['Cache-Control'] = 'no-store'
     render :plain => body, :content_type => RedmineExpertMetrics::Exposition::CONTENT_TYPE
   end
@@ -108,6 +123,60 @@ class ExpertMetricsController < ApplicationController
               'login'          => row[:user].login,
               'name'           => row[:user].name,
               'key_created_on' => row[:key_created_on] && row[:key_created_on].utc.iso8601
+            }
+          end
+        }
+      end
+    end
+  end
+
+  def slow_requests
+    @days = params[:days].to_i
+    @days = SLOW_REQUEST_DAYS.first unless SLOW_REQUEST_DAYS.include?(@days)
+    @tracking = ExpertMetricsSlowRequest.available?
+    @threshold = RedmineExpertMetrics::Performance.threshold_ms
+    since = Time.now - @days.days
+    if @tracking
+      ExpertMetricsSlowRequest.purge_if_due
+      @summary = ExpertMetricsSlowRequest.summary(since)
+      @requests = ExpertMetricsSlowRequest.where('created_at >= ?', since)
+                                          .order(:created_at => :desc, :id => :desc)
+                                          .limit(SLOW_REQUEST_LIMIT).preload(:user).to_a
+    else
+      @summary = []
+      @requests = []
+    end
+
+    respond_to do |format|
+      format.html
+      format.json do
+        render :json => {
+          'days'           => @days,
+          'enabled'        => RedmineExpertMetrics::Performance.enabled?,
+          'threshold_ms'   => @threshold,
+          'retention_days' => ExpertMetricsSlowRequest::RETENTION_DAYS,
+          'summary'        => @summary,
+          'requests'       => @requests.map do |row|
+            {
+              'created_at'  => row.created_at.utc.iso8601,
+              'host'        => row.host,
+              'controller'  => row.controller_name,
+              'action'      => row.action_name,
+              'method'      => row.http_method,
+              'format'      => row.request_format,
+              'path'        => row.path,
+              'status'      => row.status,
+              'duration_ms' => row.duration_ms,
+              'db_ms'       => row.db_ms,
+              'view_ms'     => row.view_ms,
+              'hooks_ms'    => row.hooks_ms,
+              'gc_ms'       => row.gc_ms,
+              'sql_count'   => row.sql_count,
+              'sql_cached'  => row.sql_cached,
+              'top_sql'     => row.top_sql_list,
+              'hooks'       => row.hook_list,
+              'user'        => row.user && row.user.login,
+              'request_id'  => row.request_id
             }
           end
         }

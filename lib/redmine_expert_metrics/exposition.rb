@@ -66,6 +66,95 @@ module RedmineExpertMetrics
       lines.join("\n") + "\n"
     end
 
+    # Help texts of the per-process performance series (see Performance).
+    PERFORMANCE_COUNTERS = {
+      'redmine_http_request_db_seconds_total' => 'Time spent in SQL statements, by controller, action and format. Per process.',
+      'redmine_http_request_view_seconds_total' => 'Time spent rendering views (without SQL), by controller, action and format. Per process.',
+      'redmine_http_request_hook_seconds_total' => 'Time spent in plugin hook listeners, by controller, action and format. Per process.',
+      'redmine_http_request_sql_queries_total' => 'SQL statements sent to the database (query-cache hits not counted), by controller, action and format. Per process.',
+      'redmine_http_server_errors_total' => 'Requests answered with a 5xx status, by controller and action. Per process.',
+      'redmine_hook_seconds_total' => 'Time spent in a hook listener (inclusive of hooks it triggers), by hook and listener class. Per process.',
+      'redmine_hook_calls_total' => 'Calls of a hook listener, by hook and listener class. Per process.',
+      'redmine_job_failures_total' => 'Background jobs that raised, by job class. Per process.'
+    }.freeze
+
+    PERFORMANCE_HISTOGRAMS = {
+      'redmine_http_request_duration_seconds' => 'Time Redmine spent on a request (callbacks, action, rendering), by controller, action and format. Per process.',
+      'redmine_job_duration_seconds' => 'Run time of background jobs, by job class. Per process.'
+    }.freeze
+
+    # Per-process series: never part of the cached Collector snapshot, which is
+    # shared by every pod. +registry+ is Registry#snapshot, +process+ is
+    # Performance.process_stats.
+    def render_performance(registry, process)
+      lines = []
+
+      PERFORMANCE_HISTOGRAMS.each do |name, help|
+        metric = registry[:histograms][name]
+        next if metric.nil?
+        histogram(lines, name, help)
+        metric[:series].each do |labels, data|
+          cumulative = 0
+          metric[:bounds].each_with_index do |bound, index|
+            cumulative += data[:buckets][index]
+            lines << sample("#{name}_bucket", labels.merge('le' => bound.to_s), cumulative)
+          end
+          lines << sample("#{name}_bucket", labels.merge('le' => '+Inf'), data[:count])
+          lines << sample("#{name}_sum", labels, number(data[:sum]))
+          lines << sample("#{name}_count", labels, data[:count])
+        end
+      end
+
+      PERFORMANCE_COUNTERS.each do |name, help|
+        series = registry[:counters][name]
+        next if series.nil?
+        counter(lines, name, help)
+        series.each { |labels, value| lines << sample(name, labels, number(value)) }
+      end
+
+      render_process(lines, process)
+      lines.empty? ? '' : lines.join("\n") + "\n"
+    end
+
+    def render_process(lines, process)
+      if process['resident_memory_bytes']
+        gauge(lines, 'redmine_process_resident_memory_bytes', 'Resident memory (RSS) of this Redmine process.')
+        lines << sample('redmine_process_resident_memory_bytes', {}, process['resident_memory_bytes'])
+      end
+      gauge(lines, 'redmine_process_start_time_seconds', 'Start of this Redmine process, Unix time.')
+      lines << sample('redmine_process_start_time_seconds', {}, number(process['start_time_seconds']))
+      gauge(lines, 'redmine_ruby_threads', 'Ruby threads in this process.')
+      lines << sample('redmine_ruby_threads', {}, process['threads'])
+      if process['gc_minor'] && process['gc_major']
+        counter(lines, 'redmine_ruby_gc_runs_total', 'Garbage collector runs of this process, minor and major.')
+        lines << sample('redmine_ruby_gc_runs_total', { 'type' => 'minor' }, process['gc_minor'])
+        lines << sample('redmine_ruby_gc_runs_total', { 'type' => 'major' }, process['gc_major'])
+      end
+      if process['gc_seconds']
+        counter(lines, 'redmine_ruby_gc_seconds_total', 'Time this process spent in garbage collection (Ruby 3.1+).')
+        lines << sample('redmine_ruby_gc_seconds_total', {}, number(process['gc_seconds']))
+      end
+      if process['heap_live_slots']
+        gauge(lines, 'redmine_ruby_heap_live_slots', 'Live object slots on the Ruby heap.')
+        lines << sample('redmine_ruby_heap_live_slots', {}, process['heap_live_slots'])
+      end
+      if process['allocated_objects']
+        counter(lines, 'redmine_ruby_allocated_objects_total', 'Objects allocated by this process since it started.')
+        lines << sample('redmine_ruby_allocated_objects_total', {}, process['allocated_objects'])
+      end
+      puma = process['puma']
+      return if puma.nil?
+      {
+        'backlog'       => 'Requests waiting for a Puma thread.',
+        'running'       => 'Puma threads started.',
+        'pool_capacity' => 'Requests Puma could take on right now.',
+        'max_threads'   => 'Configured maximum of Puma threads.'
+      }.each do |key, help|
+        gauge(lines, "redmine_puma_#{key}", help)
+        lines << sample("redmine_puma_#{key}", {}, puma[key].to_i)
+      end
+    end
+
     def render_api(lines, snapshot)
       counter(lines, 'redmine_api_requests_total',
               'Requests authenticated by API credentials since the plugin recorded them, by HTTP method and auth (key, basic = API key as Basic user, password, oauth).')
@@ -93,6 +182,16 @@ module RedmineExpertMetrics
     def counter(lines, name, help)
       lines << "# HELP #{name} #{help}"
       lines << "# TYPE #{name} counter"
+    end
+
+    def histogram(lines, name, help)
+      lines << "# HELP #{name} #{help}"
+      lines << "# TYPE #{name} histogram"
+    end
+
+    # Floats without exponent noise; integers stay integers.
+    def number(value)
+      value.is_a?(Float) ? value.round(6) : value
     end
 
     def sample(name, labels, value)

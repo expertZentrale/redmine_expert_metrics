@@ -4,6 +4,45 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [1.4.0] - 2026-10-30
+
+### Added
+
+- **Performance metrics**, **opt-in** via the new plugin setting *Record performance metrics* (off
+  by default; while off, a request costs one setting lookup and `/metrics` leaves the series out).
+  Every controller request is timed (`RequestTimingPatch` on `ApplicationController#process_action`)
+  together with the time spent in SQL (`sql.active_record`), in views
+  (`process_action.action_controller`) and in each plugin hook listener (`HookTimingPatch` on
+  `Redmine::Hook.call_hook`), and background jobs are timed via `perform.active_job`. The scrape
+  itself is not timed. New per-process series on `/metrics`:
+  `redmine_http_request_duration_seconds` (histogram), `redmine_http_request_{db,view,hook}_seconds_total`,
+  `redmine_http_request_sql_queries_total` and `redmine_http_server_errors_total` per controller,
+  action and format; `redmine_hook_seconds_total` / `redmine_hook_calls_total` per hook and listener;
+  `redmine_job_duration_seconds` (histogram) and `redmine_job_failures_total` per job class (label `job_class`, because `job` is Prometheus' own target label); and process
+  gauges for RSS, start time, GC runs and time, heap slots, allocations, threads and the Puma thread
+  pool. They live in the memory of each process (thread-safe registry, label sets capped), are
+  appended after the cached database snapshot so no pod ever reports another pod's numbers, and are
+  aggregated with `sum` across pods — unlike every other series of the plugin.
+- **Slow requests page** (*Administration → expert Metrics → Slow requests*, `/admin/slow_requests`,
+  also `.json` for admins): requests over the new setting *Slow request threshold* (default 2000 ms)
+  with total, database (and statement count), view, hook and GC time, the five slowest SQL
+  statements with their literal values replaced by `?`, the slowest hook listeners, user, path
+  (without query string) and pod, plus a summary per controller and action over 1 / 7 / 14 days.
+  Stored in the new table `expert_metrics_slow_requests` (migration 003), at most 30 rows per process
+  and minute, deleted after 14 days; each one is also logged as a single `warn` line with its
+  request id.
+- **`Server-Timing` header** for administrators while performance metrics are on (`app`, `db` with
+  query counts, `view`, `hooks`, `gc`), readable in the browser's developer tools.
+- **Grafana dashboard**: new *Performance* row with p50/p95/p99 of the issue page, issue list and
+  issue update, the ten slowest actions, database/view/hook share, SQL statements per request,
+  hook time per listener, background jobs, and RSS, GC time and Puma backlog per pod.
+
+### Changed
+
+- The hourly retention claim of the API usage table moved into a shared module
+  (`RedmineExpertMetrics::Purgeable`), which the slow-request table uses as well. Behaviour is
+  unchanged.
+
 ## [1.3.0] - 2026-10-12
 
 ### Added

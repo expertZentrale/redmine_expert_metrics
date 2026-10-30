@@ -2,6 +2,7 @@
 
 <div class="contextual">
   <%= link_to l(:label_expert_metrics_active_users), expert_metrics_active_users_path, :class => 'icon icon-user' %>
+  <%= link_to l(:label_expert_metrics_slow_requests), expert_metrics_slow_requests_path %>
   <%= link_to 'JSON', expert_metrics_api_usage_path(:days => @days, :format => 'json') %>
   <%= link_to l(:label_expert_metrics_prometheus), expert_metrics_prometheus_path %>
 </div>

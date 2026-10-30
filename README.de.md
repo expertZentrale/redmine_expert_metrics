@@ -2,10 +2,11 @@
 
 # Redmine expert Metrics
 
-Zeigt, wer **gerade jetzt** in Redmine arbeitet und wer die **REST-API** nutzt (und mit
-welchem Skript), und stellt das zusammen mit ein paar Grundzahlen als Prometheus-Metriken
-bereit. Gebaut für die Fragen „Kann ich eine Instanz für Wartungsarbeiten herunterfahren?“ und
-„Wer ändert Daten über die API?“. Läuft auf **Redmine 5.1, 6.0, 6.1 und 7.0**.
+Zeigt, wer **gerade jetzt** in Redmine arbeitet, wer die **REST-API** nutzt (und mit
+welchem Skript) und **welche Seiten langsam sind und warum**, und stellt das zusammen mit ein paar
+Grundzahlen als Prometheus-Metriken bereit. Gebaut für die Fragen „Kann ich eine Instanz für
+Wartungsarbeiten herunterfahren?“, „Wer ändert Daten über die API?“ und „Redmine fühlt sich
+langsamer an – wo bleibt die Zeit?“. Läuft auf **Redmine 5.1, 6.0, 6.1 und 7.0**.
 
 
 ## Screenshots
@@ -39,6 +40,11 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
   Anfragen, schreibenden Anfragen, Anmeldeart, Clients (User-Agent), letzter IP, letztem Pfad und
   Erstellungsdatum des Schlüssels — dazu die Benutzer mit einem API-Schlüssel, der im Zeitraum
   nicht verwendet wurde. Siehe [API-Nutzung](#api-nutzung).
+- **Administration → expert Metrics → Langsame Anfragen** (`/admin/slow_requests`, auch `.json`):
+  Anfragen über der eingestellten Schwelle mit der Zeit in Datenbank, Ansichten, Plugin-Hooks und
+  Garbage Collection, den langsamsten SQL-Anweisungen (ohne Werte) und den langsamsten
+  Hook-Listenern, dazu eine Zusammenfassung je Controller und Aktion. Siehe
+  [Performance-Metriken](#performance-metriken).
 - **`GET /metrics`**: Prometheus-Textformat, nur Summen (keine Namen).
 
 | Metrik | Labels | Bedeutung |
@@ -58,6 +64,27 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
 | `redmine_info` | `redmine_version`, `plugin_version` | immer 1 |
 
 ¹ Die drei `redmine_api_*`-Reihen gibt es nur, solange *API-Nutzung erfassen* eingeschaltet ist.
+
+Solange *Performance-Metriken erfassen* eingeschaltet ist, enthält `/metrics` zusätzlich Reihen
+**je Prozess** (siehe [Performance-Metriken](#performance-metriken)):
+
+| Metrik | Labels | Bedeutung |
+|---|---|---|
+| `redmine_http_request_duration_seconds` | `controller`, `action`, `format` | Histogramm der Zeit, die Redmine für eine Anfrage gebraucht hat (Callbacks, Aktion, Rendern) |
+| `redmine_http_request_db_seconds_total` | `controller`, `action`, `format` | Zeit in SQL-Anweisungen (Counter) |
+| `redmine_http_request_view_seconds_total` | `controller`, `action`, `format` | Zeit für das Rendern der Ansichten, ohne SQL (Counter) |
+| `redmine_http_request_hook_seconds_total` | `controller`, `action`, `format` | Zeit in Plugin-Hook-Listenern (Counter) |
+| `redmine_http_request_sql_queries_total` | `controller`, `action`, `format` | an die Datenbank gesendete SQL-Anweisungen, Treffer im Query-Cache nicht mitgezählt (Counter) |
+| `redmine_http_server_errors_total` | `controller`, `action` | mit einem 5xx-Status beantwortete Anfragen (Counter) |
+| `redmine_hook_seconds_total` / `redmine_hook_calls_total` | `hook`, `listener` | Zeit in und Aufrufe jedes Hook-Listeners, also welches Plugin wie lange auf einer Seite braucht (Counter) |
+| `redmine_job_duration_seconds` | `job_class` | Histogramm der Laufzeit von Hintergrundjobs |
+| `redmine_job_failures_total` | `job_class` | Hintergrundjobs, die mit einem Fehler endeten (Counter) |
+| `redmine_process_resident_memory_bytes` | – | RSS des Redmine-Prozesses (Linux) |
+| `redmine_process_start_time_seconds` | – | Startzeit des Prozesses, Unix-Zeit |
+| `redmine_ruby_gc_runs_total` | `type` = `minor`, `major` | Läufe der Garbage Collection (Counter) |
+| `redmine_ruby_gc_seconds_total` | – | Zeit in der Garbage Collection (Counter, Ruby 3.1+) |
+| `redmine_ruby_heap_live_slots`, `redmine_ruby_allocated_objects_total`, `redmine_ruby_threads` | – | Kennzahlen zu Ruby-Heap und Threads |
+| `redmine_puma_backlog`, `redmine_puma_running`, `redmine_puma_pool_capacity`, `redmine_puma_max_threads` | – | Puma-Threadpool (nur im Single-Modus) |
 
 ## Wie „aktiv“ gemessen wird
 
@@ -108,6 +135,65 @@ gespeicherte Zeilen werden trotzdem nach 90 Tagen gelöscht.
 Was ein Skript *geändert* hat, steht wie gewohnt in der Ticket-Historie — diese Seite zeigt,
 wessen Schlüssel und welcher Client dahinterstand.
 
+## Performance-Metriken
+
+Wenn sich ein Redmine „langsamer anfühlt“, ist die erste Frage *wo*: eine Seite oder alle, die
+Datenbank oder die Ansichten, Redmine selbst oder eines der Plugins. Der Kern schreibt pro Anfrage
+eine Zeitzeile ins Log, aber Produktivinstallationen loggen meist auf `warn`, und eine Logzeile
+lässt sich nicht über Wochen als Kurve zeichnen.
+
+**Die Erfassung ist standardmäßig aus.** Einschalten unter *Administration → Plugins → Redmine
+expert Metrics → Konfigurieren* (*Performance-Metriken erfassen*). Solange sie aus ist, kostet eine
+Anfrage einen Einstellungs-Lesezugriff und sonst nichts, und `/metrics` lässt die Reihen weg.
+
+- **Je Anfrage**: Das Plugin umschließt jede Controller-Aktion und hört auf die Instrumentierung
+  von Rails selbst (`sql.active_record`, `process_action.action_controller`,
+  `perform.active_job`). Jeder Hook-Listener wird einzeln gemessen, das Dashboard zeigt also, welches
+  Plugin wie lange etwa auf der Ticketseite braucht. Kosten: wenige Mikrosekunden pro
+  SQL-Anweisung und Hook-Aufruf, ein Lock pro Anfrage.
+- **Je Prozess**: Diese Reihen liegen im Speicher jedes Redmine-Prozesses, nicht in der Datenbank.
+  Jeder Pod meldet seinen eigenen Anteil, Prometheus muss **jeden Pod** abfragen (ein
+  Kubernetes-`ServiceMonitor`/`PodMonitor` tut das), und Dashboards addieren sie mit **`sum`** —
+  das Gegenteil der datenbankweiten Reihen oben. Ein Neustart beginnt bei null; `rate()` und
+  `increase()` kommen damit zurecht. Mehrere Puma-*Worker* pro Pod (Cluster-Modus) würden jeweils
+  nur ihre eigenen Anfragen zählen, aber nur einer beantwortet die Abfrage; Puma im Single-Modus
+  betreiben (wie das offizielle Docker-Image) oder jeden Worker abfragen.
+- **Langsame Anfragen**: Eine Anfrage, die mindestens die *Schwelle für langsame Anfragen*
+  (Standard 2000 ms) dauert, wird mit ihrer Aufschlüsselung in `expert_metrics_slow_requests`
+  gespeichert und als eine `warn`-Zeile mit ihrer Request-ID geloggt. SQL-Anweisungen werden mit
+  `?` statt ihrer Werte gespeichert, Suchbegriffe und E-Mail-Adressen landen also nicht in der
+  Tabelle. Höchstens 30 Zeilen pro Prozess und Minute werden geschrieben — eine langsame Datenbank
+  macht jede Anfrage langsam, und alle zu erfassen würde dort Last erzeugen, wo schon zu viel ist.
+  Zeilen werden nach **14 Tagen** gelöscht. Eine Schwelle von `0` speichert jede Anfrage; nur für
+  kurze Messungen verwenden.
+- **Server-Timing**: Administratoren erhalten einen `Server-Timing`-Response-Header (`app`, `db`
+  mit Anzahl der Anweisungen, `view`, `hooks`, `gc`), den die Entwicklerwerkzeuge des Browsers
+  unter *Netzwerk → Timing* zeigen. Praktisch, um eine einzelne Seite in Produktion ohne Zugriff
+  auf die Logs zu prüfen.
+
+Nützliche Abfragen:
+
+```promql
+# 95. Perzentil der Ticketseite, alle Pods zusammen
+histogram_quantile(0.95, sum by (le) (rate(redmine_http_request_duration_seconds_bucket{controller="issues", action="show"}[5m])))
+
+# Langsamste Aktionen nach Durchschnittszeit
+topk(10, sum by (controller, action) (rate(redmine_http_request_duration_seconds_sum[1h]))
+       / sum by (controller, action) (rate(redmine_http_request_duration_seconds_count[1h])))
+
+# Welcher Plugin-Hook kostet am meisten pro Sekunde Laufzeit
+topk(10, sum by (listener) (rate(redmine_hook_seconds_total[1h])))
+```
+
+Sinnvolle Alarme (nicht mitgeliefert, an die eigene Installation anpassen):
+
+| Bedingung | Deutet hin auf |
+|---|---|
+| p95 von `issues#show` über 1,5 s für 15 Minuten | eine langsame Abfrage oder einen Hook auf der meistgenutzten Seite |
+| `redmine_process_resident_memory_bytes` über 85 % des Container-Limits | Speicherwachstum Richtung OOM-Kill |
+| `rate(redmine_ruby_gc_seconds_total[5m])` über 0,1 | mehr als 10 % der Laufzeit in der Garbage Collection |
+| `redmine_puma_backlog` über 0 für 5 Minuten | Anfragen warten auf einen Thread |
+
 ## Wie Mails gezählt werden
 
 - **Benachrichtigungen an Redmine-Benutzer**: ein `Mail`-Observer zählt jede zugestellte
@@ -134,6 +220,9 @@ Jeder Pod meldet **dieselben** installationsweiten Zahlen. Mit `max` zusammenfas
 max by (window) (redmine_active_users)
 ```
 
+Die [Performance-Reihen](#performance-metriken) sind die Ausnahme: Sie gelten je Prozess und
+werden daher mit `sum` zusammengefasst.
+
 ## Zugriffsschutz
 
 | Endpunkt | Wer |
@@ -141,6 +230,7 @@ max by (window) (redmine_active_users)
 | `/admin/active_users` (HTML) | Redmine-Administratoren |
 | `/admin/active_users.json` | Administratoren, auch per `X-Redmine-API-Key` / `?key=` (REST-API muss aktiviert sein) |
 | `/admin/api_usage` (HTML, `.json`) | Administratoren; das JSON auch per Admin-API-Key |
+| `/admin/slow_requests` (HTML, `.json`) | Administratoren; das JSON auch per Admin-API-Key |
 | `/metrics` | standardmäßig offen; ist `metrics_token` in `config/configuration.yml` gesetzt, muss er als `Authorization: Bearer <token>` oder `?token=<token>` mitgeschickt werden. Administratoren (Sitzung oder API-Key) kommen immer durch. |
 
 ```yaml
@@ -158,9 +248,9 @@ cd /pfad/zu/redmine/plugins
 git clone https://github.com/expertZentrale/redmine_expert_metrics.git
 ```
 
-Danach die Plugin-Migrationen ausführen (eine Zählertabelle und die Tabelle für die API-Nutzung),
-und zwar **vor** dem Neustart von Redmine — ein Prozess, der ohne die Tabellen startet, erfasst
-die API-Nutzung erst nach dem nächsten Neustart:
+Danach die Plugin-Migrationen ausführen (eine Zählertabelle, die Tabelle für die API-Nutzung und
+die für langsame Anfragen), und zwar **vor** dem Neustart von Redmine — ein Prozess, der ohne die
+Tabellen startet, erfasst API-Nutzung und langsame Anfragen erst nach dem nächsten Neustart:
 
 ```bash
 bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production
@@ -171,7 +261,10 @@ Alternativ das Release-Archiv von der
 [Releases-Seite](https://github.com/expertZentrale/redmine_expert_metrics/releases) herunterladen
 und nach `plugins/` entpacken.
 
-Keine Berechtigungen; eine Einstellung (*API-Nutzung erfassen*, standardmäßig aus, siehe [API-Nutzung](#api-nutzung)). Alles andere ist aktiv, sobald das Plugin geladen wird.
+Keine Berechtigungen; drei Einstellungen: *API-Nutzung erfassen* (standardmäßig aus, siehe
+[API-Nutzung](#api-nutzung)), *Performance-Metriken erfassen* (standardmäßig aus) und *Schwelle für
+langsame Anfragen* (2000 ms, siehe [Performance-Metriken](#performance-metriken)). Alles andere ist
+aktiv, sobald das Plugin geladen wird.
 
 ## Grafana-Dashboard
 
@@ -182,14 +275,18 @@ Prometheus-Datenquelle auswählen — mehr ist nicht zu konfigurieren.
 
 Es zeigt aktive Benutzer je Zeitfenster, angemeldete Sitzungen, Konten nach Status, offene Tickets,
 aktive Projekte, das Mailaufkommen von Helpdesk und Benachrichtigungen, REST-API-Benutzer und
-Anfragen pro Stunde nach Methode und Anmeldeart sowie eine Zeile zur
-Scrape-Gesundheit mit Sammeldauer und Status je Ziel. Eine Variable wählt die Installation: **Job**,
+Anfragen pro Stunde nach Methode und Anmeldeart, eine Zeile zur Scrape-Gesundheit mit
+Sammeldauer und Status je Ziel sowie eine Performance-Zeile: Antwortzeit-Perzentile von Ticketseite,
+Ticketliste und Speichern, die langsamsten Aktionen, Datenbank- gegen Ansichts- gegen Hook-Zeit,
+SQL-Anweisungen pro Anfrage, Hook-Zeit je Plugin, Hintergrundjobs sowie Speicher, GC und Puma je
+Pod. Eine Variable wählt die Installation: **Job**,
 der Scrape-Job, der diese Metriken ausliefert.
 
 Drei Feinheiten stecken in den Abfragen selbst, statt sie dem Leser zu überlassen:
 
-- **Jedes Panel aggregiert mit `max`, nie mit `sum`.** Jeder Pod meldet dieselben
-  datenbankweiten Zahlen; eine Summe vervielfacht daher jeden Wert mit der Anzahl der Replicas.
+- **Jedes Panel aggregiert mit `max`, nie mit `sum`** — außer der Performance-Zeile. Jeder Pod
+  meldet dieselben datenbankweiten Zahlen; eine Summe vervielfacht daher jeden Wert mit der Anzahl
+  der Replicas. Die Performance-Reihen gelten je Prozess und werden stattdessen summiert.
 - **Job ist einfach auswählbar.** Da die Panels mit `max` reduzieren, würden zwei gleichzeitig
   gewählte Jobs zwei Redmine-Installationen unbemerkt zu einer Zahl verschmelzen.
 - **Die Panels zur Scrape-Gesundheit folgen nur den Redmine-Zielen und behalten ein totes Ziel im
