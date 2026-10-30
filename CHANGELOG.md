@@ -4,6 +4,28 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [1.4.1] - 2026-10-30
+
+### Fixed
+
+- **View time no longer contains SQL at log level `warn`.** The view figure came from Rails'
+  `view_runtime`, which subtracts the SQL run while rendering only when the logger is at `info` or
+  below (`ActiveRecord::Railties::ControllerRuntime#cleanup_view_runtime`). Production installations
+  log at `warn`, so every statement a template or hook listener ran was counted as database *and*
+  view time — on the slow-request page, in `redmine_http_request_view_seconds_total`, the warn line
+  and the `Server-Timing` header (an issue page with 2537 ms in SQL showed 2722 ms of views out of
+  2797 ms). `RequestTimingPatch` now times the render itself and subtracts the SQL it counted
+  meanwhile, whatever the log level. Database, hook and total times were always right.
+- SQL statement and background-job durations come from the monotonic clock
+  (`ActiveSupport::Notifications.monotonic_subscribe`) instead of `Time.now`, so an adjustment of
+  the system clock during a request can no longer distort them, and they stay measurable under
+  the frozen clock of Redmine's own test suite (6.1+), where they read 0.
+
+### Changed
+
+- Slow requests page: the user column is headed *User* (German *Benutzer*) instead of core's login
+  label (*Mitgliedsname* in German).
+
 ## [1.4.0] - 2026-10-30
 
 ### Added

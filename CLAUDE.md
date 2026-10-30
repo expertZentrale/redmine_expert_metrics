@@ -45,7 +45,10 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   every request with the setting it read; the `perform.active_job` one stays attached from init.rb,
   `install_job_subscriber!`, so job-only processes record jobs too) and `HookTimingPatch` (prepended to
   `Redmine::Hook.singleton_class`, re-implements core's 5-line `call_hook` loop to time each
-  listener) add to it; `finish_request` books it into `Performance::REGISTRY` under one lock,
+  listener) add to it, and `RequestTimingPatch#cleanup_view_runtime` adds the render time minus the
+  SQL counted during it (never take Rails' `view_runtime`: it keeps SQL in unless the logger is at
+  `info`, and production logs at `warn`; timed subscribers use `monotonic_subscribe` — Redmine's
+  tests `travel_to` a frozen time since 6.1, under which `Time.now`-based durations read 0); `finish_request` books it into `Performance::REGISTRY` under one lock,
   sets `Server-Timing` for admins and writes an `ExpertMetricsSlowRequest` over the threshold
   (≤ 30/min/process, SQL fingerprinted — literals → `?`; `"…"` is a string only on MySQL/MariaDB,
   `Performance.double_quoted_strings?`). Jobs via `perform.active_job`.
