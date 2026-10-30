@@ -9,7 +9,9 @@
 ### Added
 
 - **Performance metrics**, **opt-in** via the new plugin setting *Record performance metrics* (off
-  by default; while off, a request costs one setting lookup and `/metrics` leaves the series out).
+  by default; while off, no instrumentation subscriber is attached, a request costs one setting
+  lookup and a hook call one thread-local check, and `/metrics` leaves the series out; switching it
+  takes effect in each process with its next request).
   Every controller request is timed (`RequestTimingPatch` on `ApplicationController#process_action`)
   together with the time spent in SQL (`sql.active_record`), in views
   (`process_action.action_controller`) and in each plugin hook listener (`HookTimingPatch` on
@@ -26,7 +28,8 @@
 - **Slow requests page** (*Administration → expert Metrics → Slow requests*, `/admin/slow_requests`,
   also `.json` for admins): requests over the new setting *Slow request threshold* (default 2000 ms)
   with total, database (and statement count), view, hook and GC time, the five slowest SQL
-  statements with their literal values replaced by `?`, the slowest hook listeners, user, path
+  statements with their literal values replaced by `?` (single-quoted strings, double-quoted ones on
+  MySQL/MariaDB, PostgreSQL dollar-quoted strings, numbers), the slowest hook listeners, user, path
   (without query string) and pod, plus a summary per controller and action over 1 / 7 / 14 days.
   Stored in the new table `expert_metrics_slow_requests` (migration 003), at most 30 rows per process
   and minute, deleted after 14 days; each one is also logged as a single `warn` line with its

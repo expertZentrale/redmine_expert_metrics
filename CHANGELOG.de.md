@@ -9,8 +9,9 @@
 ### Hinzugefügt
 
 - **Performance-Metriken**, **optional** über die neue Plugin-Einstellung *Performance-Metriken
-  erfassen* (standardmäßig aus; solange aus, kostet eine Anfrage einen Einstellungs-Lesezugriff und
-  `/metrics` lässt die Reihen weg). Jede Controller-Anfrage wird gemessen (`RequestTimingPatch` auf
+  erfassen* (standardmäßig aus; solange aus, hängt kein Instrumentierungs-Abonnent, eine Anfrage kostet
+  einen Einstellungs-Lesezugriff und ein Hook-Aufruf eine Thread-lokale Prüfung, und `/metrics` lässt
+  die Reihen weg; Umschalten wirkt in jedem Prozess mit dessen nächster Anfrage). Jede Controller-Anfrage wird gemessen (`RequestTimingPatch` auf
   `ApplicationController#process_action`), zusammen mit der Zeit in SQL (`sql.active_record`), in
   den Ansichten (`process_action.action_controller`) und in jedem Plugin-Hook-Listener
   (`HookTimingPatch` auf `Redmine::Hook.call_hook`); Hintergrundjobs werden über
@@ -28,7 +29,8 @@
   `/admin/slow_requests`, für Administratoren auch als `.json`): Anfragen über der neuen Einstellung
   *Schwelle für langsame Anfragen* (Standard 2000 ms) mit Gesamt-, Datenbank- (samt Anzahl der
   Anweisungen), Ansichts-, Hook- und GC-Zeit, den fünf langsamsten SQL-Anweisungen mit `?` statt
-  ihrer Werte, den langsamsten Hook-Listenern, Benutzer, Pfad (ohne Query-String) und Pod, dazu eine
+  ihrer Werte (Zeichenketten in einfachen und, unter MySQL/MariaDB, doppelten Anführungszeichen,
+  Dollar-Strings von PostgreSQL, Zahlen), den langsamsten Hook-Listenern, Benutzer, Pfad (ohne Query-String) und Pod, dazu eine
   Zusammenfassung je Controller und Aktion über 1 / 7 / 14 Tage. Gespeichert in der neuen Tabelle
   `expert_metrics_slow_requests` (Migration 003), höchstens 30 Zeilen pro Prozess und Minute,
   gelöscht nach 14 Tagen; jede wird zusätzlich als eine `warn`-Zeile mit ihrer Request-ID geloggt.

@@ -46,11 +46,13 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   `hook_timing_patch.rb` – performance metrics. `RequestTimingPatch` (prepended to
   `ApplicationController#process_action`, skips `/metrics` itself) opens a `Performance::Stats` in
   a thread-local per request; the `sql.active_record` / `process_action.action_controller`
-  subscribers (`Performance.install!`, once per process) and `HookTimingPatch` (prepended to
+  subscribers (attached only while the setting is on: `Performance.sync_subscriptions`, called by
+  every request with the setting it read) and `HookTimingPatch` (prepended to
   `Redmine::Hook.singleton_class`, re-implements core's 5-line `call_hook` loop to time each
   listener) add to it; `finish_request` books it into `Performance::REGISTRY` under one lock,
   sets `Server-Timing` for admins and writes an `ExpertMetricsSlowRequest` over the threshold
-  (≤ 30/min/process, SQL fingerprinted — literals → `?`). Jobs via `perform.active_job`.
+  (≤ 30/min/process, SQL fingerprinted — literals → `?`; `"…"` is a string only on MySQL/MariaDB,
+  `Performance.double_quoted_strings?`). Jobs via `perform.active_job`.
   **These series are per process**: `ExpertMetricsController#prometheus` appends
   `Exposition.render_performance` *after* the cached snapshot (never put them into
   `Collector.snapshot` — it is shared via Redis across pods) and dashboards aggregate them with
@@ -60,7 +62,7 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   by `ExpertMetricsApiUsage` (90 days) and `ExpertMetricsSlowRequest` (14 days).
 - `init.rb` – plugin registration, admin menu entry (icon switch for Redmine 5 vs 6/7),
   observer registration, `ApiUsagePatch` / `RequestTimingPatch` / `HookTimingPatch` prepends
-  (guarded against dev reload), `Performance.install!`.
+  (guarded against dev reload).
 
 ## Conventions
 

@@ -5,7 +5,9 @@
 module RedmineExpertMetrics
   module RequestTimingPatch
     def process_action(*args)
-      return super unless expert_metrics_time_request?
+      enabled = Performance.enabled?
+      Performance.sync_subscriptions(enabled)
+      return super unless enabled && !expert_metrics_scrape?
 
       stats = Performance.start_request
       error = nil
@@ -24,9 +26,8 @@ module RedmineExpertMetrics
 
     # The scrape itself is left out: it would only measure how often
     # Prometheus calls.
-    def expert_metrics_time_request?
-      return false if is_a?(ExpertMetricsController) && action_name == 'prometheus'
-      Performance.enabled?
+    def expert_metrics_scrape?
+      is_a?(ExpertMetricsController) && action_name == 'prometheus'
     end
   end
 end

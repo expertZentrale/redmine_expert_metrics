@@ -138,8 +138,10 @@ database or the views, Redmine itself or one of the plugins. Core logs a timing 
 but production installations usually log at `warn`, and a log line cannot be graphed over weeks.
 
 **Recording is off by default.** Switch it on under *Administration → Plugins → Redmine expert
-Metrics → Configure* (*Record performance metrics*). While it is off, a request costs one setting
-lookup and nothing else, and `/metrics` leaves the series out.
+Metrics → Configure* (*Record performance metrics*). While it is off, no instrumentation
+subscriber is attached: a request costs one setting lookup, a plugin hook call one thread-local
+check, and `/metrics` leaves the series out. Switching it on or off takes effect in each process
+with its next request.
 
 - **Per request**: the plugin wraps every controller action and listens to Rails' own
   instrumentation (`sql.active_record`, `process_action.action_controller`,
@@ -155,7 +157,8 @@ lookup and nothing else, and `/metrics` leaves the series out.
   each worker.
 - **Slow requests**: a request that takes at least *Slow request threshold* (default 2000 ms) is
   stored in `expert_metrics_slow_requests` with its breakdown and logged as one `warn` line with
-  its request id. SQL statements are stored with their literal values replaced by `?`, so search
+  its request id. SQL statements are stored with their literal values replaced by `?` (single- and,
+  on MySQL/MariaDB, double-quoted strings, PostgreSQL dollar-quoted strings, numbers), so search
   terms and e-mail addresses do not end up in the table. At most 30 rows per process and minute
   are written — a slow database makes every request slow, and recording all of them would add
   load where there is already too much. Rows are deleted after **14 days**. A threshold of `0`

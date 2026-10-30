@@ -143,8 +143,10 @@ eine Zeitzeile ins Log, aber Produktivinstallationen loggen meist auf `warn`, un
 lässt sich nicht über Wochen als Kurve zeichnen.
 
 **Die Erfassung ist standardmäßig aus.** Einschalten unter *Administration → Plugins → Redmine
-expert Metrics → Konfigurieren* (*Performance-Metriken erfassen*). Solange sie aus ist, kostet eine
-Anfrage einen Einstellungs-Lesezugriff und sonst nichts, und `/metrics` lässt die Reihen weg.
+expert Metrics → Konfigurieren* (*Performance-Metriken erfassen*). Solange sie aus ist, hängt kein
+Instrumentierungs-Abonnent: Eine Anfrage kostet einen Einstellungs-Lesezugriff, ein Plugin-Hook-Aufruf
+eine Thread-lokale Prüfung, und `/metrics` lässt die Reihen weg. Ein- und Ausschalten wirkt in jedem
+Prozess mit dessen nächster Anfrage.
 
 - **Je Anfrage**: Das Plugin umschließt jede Controller-Aktion und hört auf die Instrumentierung
   von Rails selbst (`sql.active_record`, `process_action.action_controller`,
@@ -161,8 +163,9 @@ Anfrage einen Einstellungs-Lesezugriff und sonst nichts, und `/metrics` lässt d
 - **Langsame Anfragen**: Eine Anfrage, die mindestens die *Schwelle für langsame Anfragen*
   (Standard 2000 ms) dauert, wird mit ihrer Aufschlüsselung in `expert_metrics_slow_requests`
   gespeichert und als eine `warn`-Zeile mit ihrer Request-ID geloggt. SQL-Anweisungen werden mit
-  `?` statt ihrer Werte gespeichert, Suchbegriffe und E-Mail-Adressen landen also nicht in der
-  Tabelle. Höchstens 30 Zeilen pro Prozess und Minute werden geschrieben — eine langsame Datenbank
+  `?` statt ihrer Werte gespeichert (Zeichenketten in einfachen und, unter MySQL/MariaDB, doppelten
+  Anführungszeichen, Dollar-Strings von PostgreSQL, Zahlen), Suchbegriffe und E-Mail-Adressen landen
+  also nicht in der Tabelle. Höchstens 30 Zeilen pro Prozess und Minute werden geschrieben — eine langsame Datenbank
   macht jede Anfrage langsam, und alle zu erfassen würde dort Last erzeugen, wo schon zu viel ist.
   Zeilen werden nach **14 Tagen** gelöscht. Eine Schwelle von `0` speichert jede Anfrage; nur für
   kurze Messungen verwenden.

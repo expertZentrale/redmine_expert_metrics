@@ -26,6 +26,7 @@ class RedmineExpertMetricsPerformanceIntegrationTest < Redmine::IntegrationTest
   end
 
   def teardown
+    Performance.detach!
     Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
     super
   end
@@ -59,6 +60,18 @@ class RedmineExpertMetricsPerformanceIntegrationTest < Redmine::IntegrationTest
     assert_equal({ :counters => {}, :histograms => {} }, Performance::REGISTRY.snapshot)
     assert_equal 0, ExpertMetricsSlowRequest.count
     assert_nil response.headers['Server-Timing']
+    assert_not Performance.attached?
+  end
+
+  def test_switching_on_attaches_the_subscribers_on_the_next_request
+    Setting.plugin_redmine_expert_metrics = { 'performance_metrics_enabled' => '0' }
+    get '/projects'
+    assert_not Performance.attached?
+
+    enable(:threshold => 100_000)
+    get '/projects'
+    assert Performance.attached?
+    assert_operator Performance::REGISTRY.snapshot[:counters]['redmine_http_request_sql_queries_total'].values.sum, :>, 0
   end
 
   def test_slow_request_is_stored_with_breakdown

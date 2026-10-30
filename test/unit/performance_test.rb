@@ -18,6 +18,7 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
 
   def teardown
     Thread.current[Performance::THREAD_KEY] = nil
+    Performance.detach!
     Setting.plugin_redmine_expert_metrics = { 'api_usage_enabled' => '0' }
   end
 
@@ -101,6 +102,20 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     assert_includes fingerprint, 'y = ?'
   end
 
+  # MySQL/MariaDB read "..." as a string literal; PostgreSQL has dollar quoting.
+  def test_fingerprint_drops_double_quoted_and_dollar_quoted_values
+    skip 'double quotes are identifiers on this adapter' unless Performance.double_quoted_strings?
+    fingerprint = Performance.fingerprint('SELECT * FROM users WHERE login = "jane.doe" OR mail = "a\\"b@x"')
+    assert_not_includes fingerprint, 'jane.doe'
+    assert_not_includes fingerprint, 'b@x'
+    assert_equal 'SELECT * FROM users WHERE login = ? OR mail = ?', fingerprint
+  end
+
+  def test_fingerprint_drops_dollar_quoted_values
+    fingerprint = Performance.fingerprint("SELECT $$secret one$$, $tag$secret two$tag$, $1 FROM t")
+    assert_equal 'SELECT ?, ?, $? FROM t', fingerprint
+  end
+
   def test_fingerprint_is_truncated
     assert_operator Performance.fingerprint("SELECT #{'a' * 5000}").length, :<=, Performance::SQL_MAX_LENGTH + 3
   end
@@ -150,15 +165,33 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
   def test_jobs_are_timed_only_while_enabled
     job = ActiveJob::Base.new
     Setting.plugin_redmine_expert_metrics = { 'performance_metrics_enabled' => '0' }
+    Performance.sync_subscriptions(false)
     ActiveSupport::Notifications.instrument('perform.active_job', :job => job) {}
     assert_nil Performance::REGISTRY.snapshot[:histograms]['redmine_job_duration_seconds']
 
     Setting.plugin_redmine_expert_metrics = { 'performance_metrics_enabled' => '1' }
+    Performance.sync_subscriptions(true)
     ActiveSupport::Notifications.instrument('perform.active_job', :job => job, :exception_object => RuntimeError.new) {}
     snapshot = Performance::REGISTRY.snapshot
     labels = { 'job_class' => 'ActiveJob::Base' }
     assert_equal 1, snapshot[:histograms]['redmine_job_duration_seconds'][:series][labels][:count]
     assert_equal 1, snapshot[:counters]['redmine_job_failures_total'][labels]
+  end
+
+  # --- Subscriptions -----------------------------------------------------------
+
+  def test_subscribers_are_attached_only_while_enabled
+    Performance.sync_subscriptions(true)
+    assert Performance.attached?
+    Performance.sync_subscriptions(true)
+    assert Performance.attached?
+
+    Performance.sync_subscriptions(false)
+    assert_not Performance.attached?
+    # Detached: a statement inside an open request is not counted any more.
+    stats = Performance.start_request
+    ActiveRecord::Base.connection.select_value('SELECT 1')
+    assert_equal 0, stats.sql_count
   end
 
   # --- Slow-request table -----------------------------------------------------

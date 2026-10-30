@@ -10,6 +10,9 @@ require 'socket'
 # Per request, RequestTimingPatch opens a Stats object in a thread-local slot.
 # The sql.active_record and process_action subscribers and HookTimingPatch add
 # to it while it is open, so nothing is recorded for work outside a request.
+# The subscribers are attached only while the setting is on (sync_subscriptions,
+# called by every request): switched off, SQL statements run no callback of
+# ours, and a hook call costs HookTimingPatch one thread-local check.
 # When the request ends, finish_request books it into the in-process Registry
 # with one lock, sends a Server-Timing header to admins and stores requests
 # over the threshold as ExpertMetricsSlowRequest rows.
@@ -47,6 +50,7 @@ module RedmineExpertMetrics
 
     REGISTRY = Registry.new
     SLOW_LOCK = Mutex.new
+    SUBSCRIBE_LOCK = Mutex.new
 
     # What one request did. Only touched by the thread serving it.
     class Stats
@@ -121,13 +125,39 @@ module RedmineExpertMetrics
       GC.respond_to?(:total_time) ? GC.total_time / 1_000_000.0 : nil
     end
 
-    # Subscribers stay for the life of the process; init.rb runs again on every
-    # dev reload, so subscribe only once.
-    def install!
-      return if @installed
-      @installed = true
+    # Attaches or detaches the notification subscribers to match the setting.
+    # Called on every request with the setting it already read, so a change
+    # takes effect in each process on its next request; the common case is one
+    # instance-variable check.
+    def sync_subscriptions(enabled)
+      enabled ? attach! : detach!
+    end
 
-      ActiveSupport::Notifications.subscribe('sql.active_record') do |_name, started, finished, _id, payload|
+    def attached?
+      !@subscribers.nil?
+    end
+
+    def attach!
+      return if @subscribers
+
+      SUBSCRIBE_LOCK.synchronize do
+        @subscribers ||= subscribe_all
+      end
+    end
+
+    def detach!
+      return unless @subscribers
+
+      SUBSCRIBE_LOCK.synchronize do
+        subscribers = @subscribers
+        @subscribers = nil
+        Array(subscribers).each { |subscriber| ActiveSupport::Notifications.unsubscribe(subscriber) }
+      end
+    end
+
+    def subscribe_all
+      subscribers = []
+      subscribers << ActiveSupport::Notifications.subscribe('sql.active_record') do |_name, started, finished, _id, payload|
         stats = current
         next if stats.nil? || IGNORED_SQL_NAMES.include?(payload[:name])
         begin
@@ -138,7 +168,7 @@ module RedmineExpertMetrics
         end
       end
 
-      ActiveSupport::Notifications.subscribe('process_action.action_controller') do |_name, _started, _finished, _id, payload|
+      subscribers << ActiveSupport::Notifications.subscribe('process_action.action_controller') do |_name, _started, _finished, _id, payload|
         stats = current
         next if stats.nil?
         stats.status = payload[:status]
@@ -146,9 +176,10 @@ module RedmineExpertMetrics
         stats.view_ms = payload[:view_runtime]
       end
 
-      ActiveSupport::Notifications.subscribe('perform.active_job') do |_name, started, finished, _id, payload|
+      subscribers << ActiveSupport::Notifications.subscribe('perform.active_job') do |_name, started, finished, _id, payload|
         record_job(payload, finished - started)
       end
+      subscribers
     end
 
     def start_request
@@ -283,13 +314,32 @@ module RedmineExpertMetrics
     end
 
     # Literals become ? so statements of the same shape read alike and no
-    # values (search terms, e-mail addresses) end up in the slow-request table.
+    # values (search terms, e-mail addresses) end up in the slow-request table:
+    # single-quoted strings everywhere, double-quoted ones where they are
+    # strings (MySQL/MariaDB - elsewhere they are identifiers), PostgreSQL
+    # dollar-quoted strings, and numbers.
     def fingerprint(sql)
       text = sql.to_s.gsub(/'(?:[^'\\]|\\.|'')*'/, '?')
+      text = text.gsub(/"(?:[^"\\]|\\.|"")*"/, '?') if double_quoted_strings?
+      # The empty alternative, not "?": a back-reference to a group that did not
+      # take part never matches in Ruby, which would let $$...$$ through.
+      text = text.gsub(/\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?\$\1\$/m, '?')
       text = text.gsub(/\b\d+(?:\.\d+)?\b/, '?')
       text = text.gsub(/\(\?(?:\s*,\s*\?)+\)/, '(?...)')
       text = text.gsub(/\s+/, ' ').strip
       text.length > SQL_MAX_LENGTH ? text[0, SQL_MAX_LENGTH] + '...' : text
+    end
+
+    # MySQL/MariaDB read "..." as a string unless ANSI_QUOTES is set, which
+    # Rails does not do. Unknown adapter: treat them as strings, so a value can
+    # never slip through - the statement only reads worse.
+    def double_quoted_strings?
+      return @double_quoted_strings unless @double_quoted_strings.nil?
+
+      adapter = ActiveRecord::Base.connection_db_config.adapter.to_s
+      @double_quoted_strings = !(adapter =~ /postg|sqlite|sqlserver/i)
+    rescue StandardError
+      true
     end
 
     def format_label(format)

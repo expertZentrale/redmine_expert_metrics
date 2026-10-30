@@ -69,8 +69,8 @@ unless ApplicationController.ancestors.include?(RedmineExpertMetrics::ApiUsagePa
 end
 
 # Performance metrics (opt-in, see Performance). Same reasoning as above: patch
-# directly, guarded, and subscribe to the notifications only once per process.
-RedmineExpertMetrics::Performance.install!
+# directly, guarded. The notification subscribers are attached by the first
+# request that finds the setting on (Performance.sync_subscriptions).
 unless ApplicationController.ancestors.include?(RedmineExpertMetrics::RequestTimingPatch)
   ApplicationController.prepend(RedmineExpertMetrics::RequestTimingPatch)
 end
