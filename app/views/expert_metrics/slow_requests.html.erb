@@ -1,0 +1,147 @@
+<% html_title l(:label_expert_metrics_slow_requests) %>
+
+<div class="contextual">
+  <%= link_to l(:label_expert_metrics_active_users), expert_metrics_active_users_path, :class => 'icon icon-user' %>
+  <%= link_to l(:label_expert_metrics_api_usage), expert_metrics_api_usage_path %>
+  <%= link_to 'JSON', expert_metrics_slow_requests_path(:days => @days, :format => 'json') %>
+  <%= link_to l(:label_expert_metrics_prometheus), expert_metrics_prometheus_path %>
+</div>
+
+<h2><%= l(:label_expert_metrics) %> &#187; <%= l(:label_expert_metrics_slow_requests) %></h2>
+
+<p><%= l(:text_expert_metrics_slow_requests_intro, :threshold => @threshold, :days => ExpertMetricsSlowRequest::RETENTION_DAYS) %></p>
+
+<% unless RedmineExpertMetrics::Performance.enabled? %>
+  <p class="warning">
+    <%= l(:text_expert_metrics_performance_off) %>
+    <%= link_to l(:button_configure), plugin_settings_path(:id => 'redmine_expert_metrics') %>
+  </p>
+<% end %>
+<% unless @tracking %>
+  <p class="warning"><%= l(:text_expert_metrics_slow_requests_not_migrated) %></p>
+<% end %>
+
+<p class="expert-metrics-api-days">
+  <%= l(:label_expert_metrics_api_period) %>:
+  <% ExpertMetricsController::SLOW_REQUEST_DAYS.each do |days| %>
+    <% label = l(:label_expert_metrics_api_days, :count => days) %>
+    <% if days == @days %>
+      <strong><%= label %></strong>
+    <% else %>
+      <%= link_to label, expert_metrics_slow_requests_path(:days => days) %>
+    <% end %>
+  <% end %>
+</p>
+
+<h3><%= l(:label_expert_metrics_slow_by_action) %></h3>
+
+<% if @summary.empty? %>
+  <p class="nodata"><%= l(:label_no_data) %></p>
+<% else %>
+  <div class="autoscroll">
+    <table class="list expert-metrics-slow-summary">
+      <thead>
+        <tr>
+          <th><%= l(:field_expert_metrics_action) %></th>
+          <th><%= l(:field_expert_metrics_requests) %></th>
+          <th><%= l(:field_expert_metrics_avg_ms) %></th>
+          <th><%= l(:field_expert_metrics_max_ms) %></th>
+          <th><%= l(:field_expert_metrics_avg_db_ms) %></th>
+          <th><%= l(:field_expert_metrics_avg_sql) %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @summary.each do |row| %>
+          <tr class="<%= cycle('odd', 'even') %>">
+            <td class="name"><code><%= row[:controller] %>#<%= row[:action] %></code></td>
+            <td class="count"><%= row[:requests] %></td>
+            <td class="count"><%= row[:avg_ms] %></td>
+            <td class="count"><%= row[:max_ms] %></td>
+            <td class="count"><%= row[:avg_db_ms] %></td>
+            <td class="count"><%= row[:avg_sql] %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<h3><%= l(:label_expert_metrics_slow_latest, :count => ExpertMetricsController::SLOW_REQUEST_LIMIT) %></h3>
+
+<% if @requests.empty? %>
+  <p class="nodata"><%= l(:label_no_data) %></p>
+<% else %>
+  <div class="autoscroll">
+    <table class="list expert-metrics-slow-requests">
+      <thead>
+        <tr>
+          <th><%= l(:field_expert_metrics_time) %></th>
+          <th><%= l(:field_expert_metrics_action) %></th>
+          <th><%= l(:field_expert_metrics_path) %></th>
+          <th><%= l(:field_expert_metrics_status) %></th>
+          <th><%= l(:field_expert_metrics_duration_ms) %></th>
+          <th><%= l(:field_expert_metrics_db_ms) %></th>
+          <th><%= l(:field_expert_metrics_view_ms) %></th>
+          <th><%= l(:field_expert_metrics_hooks_ms) %></th>
+          <th><%= l(:field_expert_metrics_gc_ms) %></th>
+          <th><%= l(:field_login) %></th>
+          <th><%= l(:field_expert_metrics_host) %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @requests.each do |row| %>
+          <tr class="<%= cycle('odd', 'even') %>">
+            <td><%= format_time(row.created_at) %></td>
+            <td class="name"><code><%= row.controller_name %>#<%= row.action_name %></code> <%= row.request_format %></td>
+            <td class="path">
+              <code><%= row.http_method %> <%= truncate(row.path, :length => 60) %></code>
+              <% sql = row.top_sql_list %>
+              <% hooks = row.hook_list %>
+              <% if sql.any? || hooks.any? %>
+                <details>
+                  <summary><%= l(:label_expert_metrics_details) %></summary>
+                  <% if sql.any? %>
+                    <p><strong><%= l(:label_expert_metrics_slowest_sql) %></strong></p>
+                    <ul>
+                      <% sql.each do |entry| %>
+                        <li><%= entry['ms'] %> ms <em><%= entry['name'] %></em><br><code><%= entry['sql'] %></code></li>
+                      <% end %>
+                    </ul>
+                  <% end %>
+                  <% if hooks.any? %>
+                    <p><strong><%= l(:label_expert_metrics_hook_times) %></strong></p>
+                    <ul>
+                      <% hooks.each do |entry| %>
+                        <li><%= entry['ms'] %> ms <code><%= entry['listener'] %></code> &#187; <code><%= entry['hook'] %></code> (<%= entry['calls'] %>&times;)</li>
+                      <% end %>
+                    </ul>
+                  <% end %>
+                </details>
+              <% end %>
+            </td>
+            <td class="count"><%= row.status %></td>
+            <td class="count"><strong><%= row.duration_ms %></strong></td>
+            <td class="count" title="<%= l(:label_expert_metrics_sql_counts, :count => row.sql_count, :cached => row.sql_cached) %>">
+              <%= row.db_ms %> (<%= row.sql_count %>)
+            </td>
+            <td class="count"><%= row.view_ms %></td>
+            <td class="count"><%= row.hooks_ms %></td>
+            <td class="count"><%= row.gc_ms || '-' %></td>
+            <td class="username"><%= row.user ? link_to(row.user.login, user_path(row.user)) : '-' %></td>
+            <td><%= row.host %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>
+
+<% content_for :header_tags do %>
+  <style>
+    table.expert-metrics-slow-requests td { vertical-align: top; }
+    table.expert-metrics-slow-requests td.path, table.expert-metrics-slow-summary td.name { text-align: left; }
+    table.expert-metrics-slow-requests td.path { min-width: 32em; }
+    table.expert-metrics-slow-requests details ul { margin: 0.3em 0 0.6em 1.2em; padding: 0; }
+    table.expert-metrics-slow-requests details code { white-space: pre-wrap; word-break: break-word; }
+  </style>
+<% end %>

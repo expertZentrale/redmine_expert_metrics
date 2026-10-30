@@ -2115,6 +2115,1166 @@
       "pluginVersion": "11.0.0"
     },
     {
+      "id": 106,
+      "type": "row",
+      "title": "Performance",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
+      "panels": []
+    },
+    {
+      "id": 27,
+      "type": "timeseries",
+      "title": "Issue page response time",
+      "description": "Time Redmine spends on `issues#show` (HTML), from the request histogram: median, 95th and 99th percentile. Percentiles are estimated within histogram buckets (0.025 / 0.05 / 0.1 / 0.25 / 0.5 / 1 / 2.5 / 5 / 10 / 30 s), so read them as \"which bucket\", not to the millisecond.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 60
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(redmine_http_request_duration_seconds_bucket{job=~\"$job\", controller=\"issues\", action=\"show\", format=\"html\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "p50"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(redmine_http_request_duration_seconds_bucket{job=~\"$job\", controller=\"issues\", action=\"show\", format=\"html\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "B",
+          "legendFormat": "p95"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(redmine_http_request_duration_seconds_bucket{job=~\"$job\", controller=\"issues\", action=\"show\", format=\"html\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "C",
+          "legendFormat": "p99"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 28,
+      "type": "timeseries",
+      "title": "Issue list and update (p95)",
+      "description": "95th percentile of the issue list (`issues#index`, HTML) and of saving an issue (`issues#update`), the two pages next to the issue page that agents use most.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 60
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(redmine_http_request_duration_seconds_bucket{job=~\"$job\", controller=\"issues\", action=\"index\", format=\"html\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "list (issues#index)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(redmine_http_request_duration_seconds_bucket{job=~\"$job\", controller=\"issues\", action=\"update\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "B",
+          "legendFormat": "update (issues#update)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(redmine_http_request_duration_seconds_bucket{job=~\"$job\", controller=\"issues\", action=\"index\", format=\"json\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "C",
+          "legendFormat": "REST list (issues.json)"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 29,
+      "type": "bargauge",
+      "title": "Slowest actions (average, selected range)",
+      "description": "Average time per request over the selected range, by controller and action. Actions that ran fewer than 5 times in the range are left out, so a single unlucky request does not top the list.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 68
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "min": 0,
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "gradient",
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "text",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "topk(10, (sum by (controller, action) (increase(redmine_http_request_duration_seconds_sum{job=~\"$job\"}[$__range])) / sum by (controller, action) (increase(redmine_http_request_duration_seconds_count{job=~\"$job\"}[$__range]))) and on (controller, action) (sum by (controller, action) (increase(redmine_http_request_duration_seconds_count{job=~\"$job\"}[$__range])) >= 5))",
+          "range": false,
+          "instant": true,
+          "refId": "A",
+          "legendFormat": "{{controller}}#{{action}}",
+          "format": "time_series"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Where the time goes",
+      "description": "Seconds per second of wall time, all requests: time in SQL statements, in rendering views (without SQL) and in plugin hook listeners, next to the total. Hook time overlaps the other two — a hook that queries or renders counts there as well — so the lines are not stacked.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 68
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "min": 0,
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(redmine_http_request_duration_seconds_sum{job=~\"$job\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "total"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(redmine_http_request_db_seconds_total{job=~\"$job\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "refId": "B",
+          "legendFormat": "database"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(redmine_http_request_view_seconds_total{job=~\"$job\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "refId": "C",
+          "legendFormat": "views"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(redmine_http_request_hook_seconds_total{job=~\"$job\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "refId": "D",
+          "legendFormat": "plugin hooks"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "SQL statements per request (top 10 actions)",
+      "description": "Statements sent to the database per request, by action (query-cache hits not counted). A number that climbs over time on the same action usually means a query per row or per journal.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 76
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "topk(10, sum by (controller, action) (rate(redmine_http_request_sql_queries_total{job=~\"$job\"}[$__rate_interval])) / sum by (controller, action) (rate(redmine_http_request_duration_seconds_count{job=~\"$job\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{controller}}#{{action}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Plugin hook time by listener (top 10)",
+      "description": "Seconds per second spent in each hook listener class, summed over all hooks it implements. This is where a plugin that slows pages down shows up by name.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 76
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "min": 0,
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "topk(10, sum by (listener) (rate(redmine_hook_seconds_total{job=~\"$job\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{listener}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "Memory per pod (RSS)",
+      "description": "Resident memory of each Redmine process. A line that only climbs until the pod restarts points at memory growth (fragmentation or a leak); compare with the container limit.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 84
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "last",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (pod, instance) (redmine_process_resident_memory_bytes{job=~\"$job\"})",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{pod}} {{instance}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 35,
+      "type": "timeseries",
+      "title": "GC time share per pod",
+      "description": "Share of wall time each process spent in garbage collection (Ruby 3.1+). A few percent is normal; a share that grows with the process's age goes with growing memory.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 84
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (pod, instance) (rate(redmine_ruby_gc_seconds_total{job=~\"$job\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{pod}} {{instance}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 36,
+      "type": "timeseries",
+      "title": "Puma backlog per pod",
+      "description": "Requests waiting for a free Puma thread. Above 0 for longer than a moment means the threads are busy — slow requests or too few threads.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 84
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (pod, instance) (redmine_puma_backlog{job=~\"$job\"})",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{pod}} {{instance}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Background jobs (p95 by job)",
+      "description": "95th percentile run time of background jobs (ActiveJob) by job class, e.g. the helpdesk's AI summary or knowledge-base jobs. Jobs run inside the Redmine pods, so long ones take memory and threads from requests.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 92
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, job_class) (rate(redmine_job_duration_seconds_bucket{job=~\"$job\"}[$__rate_interval])))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{job_class}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 37,
+      "type": "timeseries",
+      "title": "Server errors per hour",
+      "description": "Requests answered with a 5xx status, by action. Requests killed before Redmine answered (pod restart, OOM kill) never reach Redmine's counters; those show up in the ingress or service mesh instead.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 92
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (controller, action) (rate(redmine_http_server_errors_total{job=~\"$job\"}[$__rate_interval])) * 3600",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{controller}}#{{action}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
       "id": 104,
       "type": "row",
       "title": "About these metrics",
@@ -2123,7 +3283,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 59
+        "y": 100
       },
       "panels": [
         {
@@ -2138,7 +3298,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 60
+            "y": 101
           },
           "options": {
             "mode": "markdown",
@@ -2147,7 +3307,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "## Reading these numbers\n\n**Every pod reports the same figures.** The plugin queries the Redmine database, so each replica answers `/metrics` with identical, installation-wide values. Every panel here therefore aggregates with `max`, never `sum` — `sum` would multiply everything by the number of pods.\n\n**\"Active\" means a browser request.** It comes from Redmine's own session tokens, whose `updated_on` core bumps on every request (at most once a minute). API-key calls and the mail fetcher create no session token and do not count — this is \"who would notice a restart\", not \"what load is the box under\". API calls have their own row.\n\n**Sessions outnumber active users.** A session token stays valid until it expires, so somebody who logged in this morning still counts as a session long after they stopped clicking.\n\n**REST API.** Only while *Record API usage* is switched on in the plugin settings (off by default) — otherwise this row stays empty. Every request authenticated by API credentials is then counted in `redmine_api_requests_total` by `method` and `auth` (`key`, `basic` = API key as Basic user, `password` = login and password via HTTP Basic, `oauth`). `redmine_api_users` counts distinct users per calendar-day window. *Which* users and scripts is on the plugin's admin page (Administration » expert Metrics » API usage) — never in Prometheus.\n\n**The mail metrics are counters.** Use `rate()` or `increase()`, as the panels above do. `redmine_helpdesk_mails_total` only exists when [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed; those panels stay empty otherwise. A notification with an empty `project` label is an account or security mail.\n\nMetric reference: [redmine_expert_metrics README](https://github.com/expertZentrale/redmine_expert_metrics#readme)."
+            "content": "## Reading these numbers\n\n**Every pod reports the same figures — except the performance row.** The plugin queries the Redmine database, so each replica answers `/metrics` with identical, installation-wide values. Every panel here therefore aggregates with `max`, never `sum` — `sum` would multiply everything by the number of pods. The *Performance* row is the opposite: request, hook, job and memory figures live in each process, so those panels add pods up with `sum` (or show them per pod). They appear only while *Record performance metrics* is switched on; slow requests themselves, with their slowest SQL and hooks, are on the plugin's admin page (Administration » expert Metrics » Slow requests).\n\n**\"Active\" means a browser request.** It comes from Redmine's own session tokens, whose `updated_on` core bumps on every request (at most once a minute). API-key calls and the mail fetcher create no session token and do not count — this is \"who would notice a restart\", not \"what load is the box under\". API calls have their own row.\n\n**Sessions outnumber active users.** A session token stays valid until it expires, so somebody who logged in this morning still counts as a session long after they stopped clicking.\n\n**REST API.** Only while *Record API usage* is switched on in the plugin settings (off by default) — otherwise this row stays empty. Every request authenticated by API credentials is then counted in `redmine_api_requests_total` by `method` and `auth` (`key`, `basic` = API key as Basic user, `password` = login and password via HTTP Basic, `oauth`). `redmine_api_users` counts distinct users per calendar-day window. *Which* users and scripts is on the plugin's admin page (Administration » expert Metrics » API usage) — never in Prometheus.\n\n**The mail metrics are counters.** Use `rate()` or `increase()`, as the panels above do. `redmine_helpdesk_mails_total` only exists when [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed; those panels stay empty otherwise. A notification with an empty `project` label is an account or security mail.\n\nMetric reference: [redmine_expert_metrics README](https://github.com/expertZentrale/redmine_expert_metrics#readme)."
           },
           "transparent": false,
           "pluginVersion": "11.0.0"

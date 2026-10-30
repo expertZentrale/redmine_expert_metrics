@@ -225,7 +225,74 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     assert_response :forbidden
   end
 
+  # --- /admin/slow_requests ---------------------------------------------------
+
+  def test_slow_requests_requires_admin
+    @request.session[:user_id] = 2
+    get :slow_requests
+    assert_response :forbidden
+  end
+
+  def test_slow_requests_html_lists_rows_and_summary
+    ExpertMetricsSlowRequest.delete_all
+    record_slow_request('issues', 'show', 3200, Time.now - 1.hour)
+    record_slow_request('issues', 'show', 2100, Time.now - 2.hours)
+    record_slow_request('issues', 'index', 2500, Time.now - 3.days)
+    @request.session[:user_id] = 1
+
+    get :slow_requests
+    assert_response :success
+    assert_select 'table.expert-metrics-slow-summary tbody tr', 1
+    assert_select 'table.expert-metrics-slow-summary td.name code', :text => 'issues#show'
+    assert_select 'table.expert-metrics-slow-requests tbody tr', 2
+    assert_select 'table.expert-metrics-slow-requests details li code', :text => 'SELECT * FROM issues WHERE id = ?'
+    assert_select 'p.warning a[href=?]', '/settings/plugin/redmine_expert_metrics'
+
+    get :slow_requests, :params => { :days => '7' }
+    assert_select 'table.expert-metrics-slow-requests tbody tr', 3
+  end
+
+  def test_slow_requests_json_via_admin_api_key
+    ExpertMetricsSlowRequest.delete_all
+    record_slow_request('issues', 'show', 3200, Time.now - 1.hour)
+
+    with_settings :rest_api_enabled => '1' do
+      get :slow_requests, :params => { :format => 'json', :key => User.find(1).api_key }
+    end
+    assert_response :success
+    json = ActiveSupport::JSON.decode(response.body)
+    assert_equal 1, json['days']
+    assert_equal ExpertMetricsSlowRequest::RETENTION_DAYS, json['retention_days']
+    assert_equal 1, json['summary'].size
+    request = json['requests'].first
+    assert_equal 'show', request['action']
+    assert_equal 3200, request['duration_ms']
+    assert_equal 'SELECT * FROM issues WHERE id = ?', request['top_sql'].first['sql']
+    assert_equal 'jsmith', request['user']
+  end
+
+  def test_plugin_settings_page_renders_the_performance_settings
+    @request.session[:user_id] = 1
+    @controller = SettingsController.new
+    get :plugin, :params => { :id => 'redmine_expert_metrics' }
+    assert_response :success
+    assert_select '#settings_performance_metrics_enabled', 1
+    assert_select 'input[name=?][value=?]', 'settings[slow_request_threshold_ms]',
+                  RedmineExpertMetrics::Performance::DEFAULT_THRESHOLD_MS.to_s
+  end
+
   private
+
+  def record_slow_request(controller, action, duration_ms, at)
+    ExpertMetricsSlowRequest.create!(
+      :created_at => at, :host => 'redmine-0', :controller_name => controller, :action_name => action,
+      :http_method => 'GET', :request_format => 'html', :path => "/#{controller}/1", :status => 200,
+      :duration_ms => duration_ms, :db_ms => duration_ms - 200, :view_ms => 150, :hooks_ms => 40,
+      :sql_count => 120, :sql_cached => 30, :user_id => 2,
+      :top_sql => [{ 'ms' => 900.5, 'name' => 'Issue Load', 'sql' => 'SELECT * FROM issues WHERE id = ?' }].to_json,
+      :hooks => [{ 'hook' => 'view_issues_show_details_bottom', 'listener' => 'Foo::Hooks', 'ms' => 30.0, 'calls' => 1 }].to_json
+    )
+  end
 
   def record_api_use(user_id, verb, user_agent, auth = 'key')
     ExpertMetricsApiUsage.record!(:user_id => user_id, :http_method => verb, :auth_method => auth,

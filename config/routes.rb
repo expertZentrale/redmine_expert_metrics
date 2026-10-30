@@ -9,3 +9,7 @@ get 'admin/active_users', :to => 'expert_metrics#active_users',
 
 # Who uses the REST API (HTML, JSON for admins).
 get 'admin/api_usage', :to => 'expert_metrics#api_usage', :as => 'expert_metrics_api_usage'
+
+# Requests over the slow-request threshold (HTML, JSON for admins).
+get 'admin/slow_requests', :to => 'expert_metrics#slow_requests',
+    :as => 'expert_metrics_slow_requests'

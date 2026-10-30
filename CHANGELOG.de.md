@@ -4,6 +4,51 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [1.4.0] - 2026-10-30
+
+### Hinzugefügt
+
+- **Performance-Metriken**, **optional** über die neue Plugin-Einstellung *Performance-Metriken
+  erfassen* (standardmäßig aus; solange aus, hängt kein SQL- oder Anfrage-Abonnent, eine Anfrage kostet
+  einen Einstellungs-Lesezugriff, ein Hook-Aufruf eine Thread-lokale Prüfung und ein Hintergrundjob
+  einen Einstellungs-Lesezugriff, und `/metrics` lässt
+  die Reihen weg; Umschalten wirkt in jedem Prozess mit dessen nächster Anfrage). Jede Controller-Anfrage wird gemessen (`RequestTimingPatch` auf
+  `ApplicationController#process_action`), zusammen mit der Zeit in SQL (`sql.active_record`), in
+  den Ansichten (`process_action.action_controller`) und in jedem Plugin-Hook-Listener
+  (`HookTimingPatch` auf `Redmine::Hook.call_hook`); Hintergrundjobs werden über
+  `perform.active_job` gemessen. Die Abfrage durch Prometheus selbst wird nicht gemessen. Neue Reihen
+  je Prozess in `/metrics`: `redmine_http_request_duration_seconds` (Histogramm),
+  `redmine_http_request_{db,view,hook}_seconds_total`, `redmine_http_request_sql_queries_total` und
+  `redmine_http_server_errors_total` je Controller, Aktion und Format; `redmine_hook_seconds_total` /
+  `redmine_hook_calls_total` je Hook und Listener; `redmine_job_duration_seconds` (Histogramm) und
+  `redmine_job_failures_total` je Job-Klasse (Label `job_class`, weil `job` das Ziel-Label von Prometheus selbst ist); sowie Prozesswerte für RSS, Startzeit, GC-Läufe und -Zeit,
+  Heap-Slots, Allokationen, Threads und den Puma-Threadpool. Sie liegen im Speicher jedes Prozesses
+  (threadsichere Registry, Anzahl der Label-Kombinationen begrenzt), werden hinter den gecachten
+  Datenbank-Stand angehängt, sodass kein Pod die Zahlen eines anderen meldet, und über Pods hinweg
+  mit `sum` zusammengefasst — anders als alle übrigen Reihen des Plugins.
+- **Seite Langsame Anfragen** (*Administration → expert Metrics → Langsame Anfragen*,
+  `/admin/slow_requests`, für Administratoren auch als `.json`): Anfragen über der neuen Einstellung
+  *Schwelle für langsame Anfragen* (Standard 2000 ms) mit Gesamt-, Datenbank- (samt Anzahl der
+  Anweisungen), Ansichts-, Hook- und GC-Zeit, den fünf langsamsten SQL-Anweisungen mit `?` statt
+  ihrer Werte (Zeichenketten in einfachen und, unter MySQL/MariaDB, doppelten Anführungszeichen,
+  Dollar-Strings von PostgreSQL, Zahlen), den langsamsten Hook-Listenern, Benutzer, Pfad (ohne Query-String) und Pod, dazu eine
+  Zusammenfassung je Controller und Aktion über 1 / 7 / 14 Tage. Gespeichert in der neuen Tabelle
+  `expert_metrics_slow_requests` (Migration 003), höchstens 30 Zeilen pro Prozess und Minute,
+  gelöscht nach 14 Tagen; jede wird zusätzlich als eine `warn`-Zeile mit ihrer Request-ID geloggt.
+- **`Server-Timing`-Header** für Administratoren, solange die Performance-Metriken an sind (`app`,
+  `db` mit Anzahl der Anweisungen, `view`, `hooks`, `gc`), lesbar in den Entwicklerwerkzeugen des
+  Browsers.
+- **Grafana-Dashboard**: neue Zeile *Performance* mit p50/p95/p99 von Ticketseite, Ticketliste und
+  Ticket-Speichern, den zehn langsamsten Aktionen, dem Anteil von Datenbank, Ansichten und Hooks,
+  SQL-Anweisungen pro Anfrage, Hook-Zeit je Listener, Hintergrundjobs sowie RSS, GC-Zeit und
+  Puma-Warteschlange je Pod.
+
+### Geändert
+
+- Die stündliche Aufbewahrungs-Prüfung der API-Nutzungstabelle liegt jetzt in einem gemeinsamen
+  Modul (`RedmineExpertMetrics::Purgeable`), das auch die Tabelle der langsamen Anfragen nutzt. Das
+  Verhalten ist unverändert.
+
 ## [1.3.0] - 2026-10-12
 
 ### Hinzugefügt

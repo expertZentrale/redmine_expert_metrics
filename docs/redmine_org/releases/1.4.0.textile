@@ -1,0 +1,16 @@
+h3. redmine_expert_metrics 1.4.0 — 2026-10-30
+
+h4. Added
+
+* *Performance metrics*, *opt-in* via the plugin setting _Record performance metrics_ (off by default; while off, nothing is attached to Rails' SQL and request instrumentation, a request costs one setting lookup and @/metrics@ is unchanged). Every request is timed per controller and action, together with the time spent in SQL, in rendering views and in each plugin's hook listeners, plus background jobs and the memory, garbage collection and Puma thread pool of each Redmine process. On @/metrics@ as a request-duration histogram, per-action database/view/hook time and SQL statement counters, per-listener hook time, a job-duration histogram, and process gauges. These series are kept per process: Prometheus has to scrape every pod, and they are added up with @sum@ — unlike the plugin's database-wide series.
+* *Slow requests page* (_Administration → expert Metrics → Slow requests_, also as JSON): requests that took longer than _Slow request threshold_ (default 2000 ms), with total, database (and number of statements), view, hook and GC time, the five slowest SQL statements with their values replaced by @?@, the slowest hook listeners, the user, path and pod, plus a summary per controller and action. At most 30 rows per process and minute, kept 14 days; each one is also logged as a single @warn@ line with its request id.
+* *Server-Timing header* for administrators while performance metrics are on, so the browser's developer tools show where a page spent its time.
+* *Grafana dashboard*: new *Performance* row — issue page percentiles, issue list and update, slowest actions, database/view/hook share, SQL statements per request, hook time per plugin, background jobs, and memory, GC time and Puma backlog per pod.
+
+h4. Upgrade notes
+
+Migration 003 adds the table @expert_metrics_slow_requests@ — run the migration command and restart. Nothing is recorded until you switch on _Record performance metrics_ under _Administration → Plugins → Configure_.
+
+The performance series are per process. If Prometheus scrapes Redmine through a single service address rather than every pod, each scrape sees one pod's numbers only; scrape the pods (a Kubernetes @ServiceMonitor@ or @PodMonitor@ does). Under Puma in cluster mode (several workers per pod) each worker counts only its own requests.
+
+Slow-request rows store the user and path of the request (no query string, no SQL values). Mention them in your privacy documentation if you keep the setting on.

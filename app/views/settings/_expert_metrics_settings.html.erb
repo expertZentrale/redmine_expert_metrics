@@ -4,3 +4,15 @@
   <%= check_box_tag 'settings[api_usage_enabled]', '1', settings['api_usage_enabled'].to_s == '1' %>
   <em class="info"><%= l(:text_expert_metrics_api_usage_enabled) %></em>
 </p>
+<p>
+  <%= hidden_field_tag 'settings[performance_metrics_enabled]', '0', :id => nil %>
+  <label for="settings_performance_metrics_enabled"><%= l(:label_expert_metrics_performance_enabled) %></label>
+  <%= check_box_tag 'settings[performance_metrics_enabled]', '1', settings['performance_metrics_enabled'].to_s == '1' %>
+  <em class="info"><%= l(:text_expert_metrics_performance_enabled) %></em>
+</p>
+<p>
+  <label for="settings_slow_request_threshold_ms"><%= l(:label_expert_metrics_slow_request_threshold) %></label>
+  <%= number_field_tag 'settings[slow_request_threshold_ms]', RedmineExpertMetrics::Performance.threshold_ms,
+                       :min => 0, :step => 100, :size => 6 %> ms
+  <em class="info"><%= l(:text_expert_metrics_slow_request_threshold, :days => ExpertMetricsSlowRequest::RETENTION_DAYS) %></em>
+</p>

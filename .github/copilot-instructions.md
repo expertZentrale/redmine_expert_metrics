@@ -5,11 +5,14 @@ different tools — **keep them in sync when either changes.**
 
 ## Overview
 
-Small Redmine plugin: "who is active right now" and "who uses the REST API" as admin pages
-+ JSON, aggregate numbers and mail/API counters as Prometheus metrics on `/metrics`. Two
-migrations (counter table, API usage table), no permissions, one setting: `api_usage_enabled`
-(off by default) — while off, `ApiUsagePatch` returns before any query and `Collector.collect`
-leaves `api_*` nil, so `/metrics` omits those series.
+Small Redmine plugin: "who is active right now", "who uses the REST API" and "which requests
+are slow" as admin pages + JSON, aggregate numbers, mail/API counters and per-process
+performance series as Prometheus metrics on `/metrics`. Three migrations (counter table, API
+usage table, slow-request table), no permissions, three settings: `api_usage_enabled` (off by
+default) — while off, `ApiUsagePatch` returns before any query and `Collector.collect` leaves
+`api_*` nil, so `/metrics` omits those series; `performance_metrics_enabled` (off by default) and
+`slow_request_threshold_ms` (default 2000, nil on old installs → `Performance.threshold_ms`
+falls back).
 
 This directory lives inside the parent `redmine-expert` deployment repo (`../../`). It is
 **not** a Redmine checkout — Redmine only exists inside the Docker image. Run everything
@@ -39,8 +42,28 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   `Mail` observer counting core notifications (`X-Mailer: Redmine`, label `X-Redmine-Project`)
   into `expert_metrics_counters`; helpdesk customer mails are read from `helpdesk_messages`
   in the collector when that plugin is present.
+- `lib/redmine_expert_metrics/performance.rb` + `registry.rb` + `request_timing_patch.rb` +
+  `hook_timing_patch.rb` – performance metrics. `RequestTimingPatch` (prepended to
+  `ApplicationController#process_action`, skips `/metrics` itself) opens a `Performance::Stats` in
+  a thread-local per request; the `sql.active_record` / `process_action.action_controller`
+  subscribers (attached only while the setting is on: `Performance.sync_subscriptions`, called by
+  every request with the setting it read; the `perform.active_job` one stays attached from init.rb,
+  `install_job_subscriber!`, so job-only processes record jobs too) and `HookTimingPatch` (prepended to
+  `Redmine::Hook.singleton_class`, re-implements core's 5-line `call_hook` loop to time each
+  listener) add to it; `finish_request` books it into `Performance::REGISTRY` under one lock,
+  sets `Server-Timing` for admins and writes an `ExpertMetricsSlowRequest` over the threshold
+  (≤ 30/min/process, SQL fingerprinted — literals → `?`; `"…"` is a string only on MySQL/MariaDB,
+  `Performance.double_quoted_strings?`). Jobs via `perform.active_job`.
+  **These series are per process**: `ExpertMetricsController#prometheus` appends
+  `Exposition.render_performance` *after* the cached snapshot (never put them into
+  `Collector.snapshot` — it is shared via Redis across pods) and dashboards aggregate them with
+  `sum`, not `max`. Never use `job` as a metric label (Prometheus' target label) — it is
+  `job_class`.
+- `lib/redmine_expert_metrics/purgeable.rb` – hourly `purge_if_due` claim (Redis SET NX), extended
+  by `ExpertMetricsApiUsage` (90 days) and `ExpertMetricsSlowRequest` (14 days).
 - `init.rb` – plugin registration, admin menu entry (icon switch for Redmine 5 vs 6/7),
-  observer registration, `ApiUsagePatch` prepend (guarded against dev reload).
+  observer registration, `ApiUsagePatch` / `RequestTimingPatch` / `HookTimingPatch` prepends
+  (guarded against dev reload).
 
 ## Conventions
 
@@ -72,7 +95,9 @@ docker-compose -f docker-compose.yml --profile test run --build --rm -e PLUGIN=r
 Tests clear `Collector::CACHE_KEY` and delete all session tokens in `setup`; create test
 tokens with `Token.create!(:user_id, :action => 'session')` + `update_columns(:updated_on)`.
 API capture is tested end to end in `test/integration/api_usage_test.rb`
-(`Redmine::ApiTest::Base`, real requests through core's `find_current_user`).
+(`Redmine::ApiTest::Base`, real requests through core's `find_current_user`), request timing in
+`test/integration/performance_test.rb` (`Redmine::IntegrationTest`; call `reset!` before logging
+in a second user, and reset `Performance::REGISTRY` / `reset_slow_limit!` in `setup`).
 
 ## CI
 

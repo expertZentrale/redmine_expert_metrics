@@ -5,6 +5,10 @@ require 'digest/sha1'
 # credentials; read by the admin page. Same atomic UPDATE-then-INSERT pattern as
 # ExpertMetricsCounter, so concurrent pods never lose a request.
 class ExpertMetricsApiUsage < ActiveRecord::Base
+  # purge_if_due: called from API requests, every /metrics collection and the
+  # admin page, so it also runs while nobody uses the API.
+  extend RedmineExpertMetrics::Purgeable
+
   RETENTION_DAYS = 90
   # Counter name in expert_metrics_counters, label "<VERB>:<auth>".
   COUNTER = 'api_requests'.freeze
@@ -58,21 +62,7 @@ class ExpertMetricsApiUsage < ActiveRecord::Base
     end
   end
 
-  # Drops rows past the retention period. Runs at most once an hour per cache
-  # store (shared Redis in production), so it can be called on every request.
-  # Called from API requests, every /metrics collection and the admin page, so
-  # it also runs while nobody uses the API. Never raises: a broken cache store
-  # must not take /metrics down with it, and the next healthy call purges.
-  def self.purge_if_due
-    # unless_exist makes the claim atomic (Redis SET NX, Memcache add): of
-    # several requests or pods arriving after the hour, only one purges.
-    return unless Rails.cache.write(PURGE_CACHE_KEY, true, :expires_in => 1.hour, :unless_exist => true)
-    purge!
-  rescue StandardError => e
-    Rails.logger.warn("redmine_expert_metrics: API usage purge skipped (#{e.class}: #{e.message})")
-    nil
-  end
-
+  # Drops rows past the retention period (see Purgeable#purge_if_due).
   # Days are server-local (Time.now.to_date / Date.today) on both the write and
   # the read side, so they always agree.
   def self.purge!(today = Date.today)
