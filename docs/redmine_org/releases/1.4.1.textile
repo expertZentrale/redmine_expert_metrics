@@ -1,0 +1,13 @@
+h3. redmine_expert_metrics 1.4.1 — 2026-10-30
+
+h4. Fixed
+
+* *View time no longer contains SQL when Redmine logs at @warn@.* Rails takes the SQL run while rendering out of its own view time only when the log level is @info@ or lower, so on a production installation every query from a template or plugin hook counted as database _and_ view time — on the slow requests page, in the view-time metric and in the @Server-Timing@ header. The plugin now measures rendering itself, whatever the log level. Database, hook and total times were not affected.
+
+h4. Changed
+
+* Slow requests page: the user column is headed _User_ instead of core's login label.
+
+h4. Upgrade notes
+
+No migrations. Replace the plugin directory and restart.

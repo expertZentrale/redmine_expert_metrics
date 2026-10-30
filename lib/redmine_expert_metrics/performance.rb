@@ -8,8 +8,9 @@ require 'socket'
 # it is off, a request costs one setting lookup and nothing else.
 #
 # Per request, RequestTimingPatch opens a Stats object in a thread-local slot.
-# The sql.active_record and process_action subscribers and HookTimingPatch add
-# to it while it is open, so nothing is recorded for work outside a request.
+# The sql.active_record and process_action subscribers, HookTimingPatch and
+# RequestTimingPatch's own render timing add to it while it is open, so
+# nothing is recorded for work outside a request.
 # The SQL and request subscribers are attached only while the setting is on
 # (sync_subscriptions, called by every request): switched off, SQL statements
 # run no callback of ours, and a hook call costs HookTimingPatch one
@@ -58,8 +59,8 @@ module RedmineExpertMetrics
     # What one request did. Only touched by the thread serving it.
     class Stats
       attr_reader :started, :gc_started, :sql_count, :sql_cached, :sql_ms, :top_sql,
-                  :hooks_ms, :hooks
-      attr_accessor :status, :format, :view_ms, :hook_depth
+                  :view_ms, :hooks_ms, :hooks
+      attr_accessor :status, :format, :hook_depth
 
       def initialize
         @started = Performance.monotonic
@@ -67,6 +68,7 @@ module RedmineExpertMetrics
         @sql_count = 0
         @sql_cached = 0
         @sql_ms = 0.0
+        @view_ms = 0.0
         @top_sql = []
         @hooks_ms = 0.0
         @hooks = {}
@@ -84,6 +86,13 @@ module RedmineExpertMetrics
         @top_sql << { :ms => ms.round(1), :name => name.to_s, :sql => Performance.fingerprint(sql) }
         @top_sql.sort_by! { |entry| -entry[:ms] }
         @top_sql.pop if @top_sql.size > TOP_SQL
+      end
+
+      # One render, without its SQL (RequestTimingPatch#cleanup_view_runtime).
+      # Clock and SQL timings can disagree by a fraction of a millisecond, so
+      # a render that was all SQL never goes below zero.
+      def add_view(ms)
+        @view_ms += ms if ms > 0
       end
 
       # Listener time is inclusive (a hook that renders a partial calling another
@@ -176,7 +185,6 @@ module RedmineExpertMetrics
         next if stats.nil?
         stats.status = payload[:status]
         stats.format = payload[:format]
-        stats.view_ms = payload[:view_runtime]
       end
 
       subscribers
@@ -222,7 +230,7 @@ module RedmineExpertMetrics
       REGISTRY.update do |r|
         r.observe('redmine_http_request_duration_seconds', REQUEST_BUCKETS, labels, duration_ms / 1000.0)
         r.increment('redmine_http_request_db_seconds_total', labels, stats.sql_ms / 1000.0)
-        r.increment('redmine_http_request_view_seconds_total', labels, stats.view_ms.to_f / 1000.0)
+        r.increment('redmine_http_request_view_seconds_total', labels, stats.view_ms / 1000.0)
         r.increment('redmine_http_request_hook_seconds_total', labels, stats.hooks_ms / 1000.0)
         r.increment('redmine_http_request_sql_queries_total', labels, stats.sql_count)
         if status >= 500
@@ -247,7 +255,7 @@ module RedmineExpertMetrics
       parts = [
         "app;dur=#{duration_ms.round(1)}",
         "db;dur=#{stats.sql_ms.round(1)};desc=\"#{stats.sql_count} queries, #{stats.sql_cached} cached\"",
-        "view;dur=#{stats.view_ms.to_f.round(1)}",
+        "view;dur=#{stats.view_ms.round(1)}",
         "hooks;dur=#{stats.hooks_ms.round(1)}"
       ]
       parts << "gc;dur=#{gc_ms.round(1)}" if gc_ms
@@ -261,7 +269,7 @@ module RedmineExpertMetrics
       Rails.logger.warn(
         "redmine_expert_metrics: slow request #{labels['controller']}##{labels['action']} " \
         "#{duration_ms.round}ms (db #{stats.sql_ms.round}ms/#{stats.sql_count} queries, " \
-        "view #{stats.view_ms.to_f.round}ms, hooks #{stats.hooks_ms.round}ms) " \
+        "view #{stats.view_ms.round}ms, hooks #{stats.hooks_ms.round}ms) " \
         "status=#{status} path=#{request.path} request_id=#{request.request_id}"
       )
       return unless slow_write_allowed? && ExpertMetricsSlowRequest.available?
@@ -282,7 +290,7 @@ module RedmineExpertMetrics
         :status          => status,
         :duration_ms     => duration_ms.round,
         :db_ms           => stats.sql_ms.round,
-        :view_ms         => stats.view_ms.to_f.round,
+        :view_ms         => stats.view_ms.round,
         :hooks_ms        => stats.hooks_ms.round,
         :gc_ms           => gc_ms && gc_ms.round,
         :sql_count       => stats.sql_count,

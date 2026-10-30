@@ -23,7 +23,7 @@ Redmine::Plugin.register :redmine_expert_metrics do
   name 'Redmine expert Metrics'
   author 'Dennis Buehring'
   description 'Shows who is currently working in Redmine, who uses the REST API with which client and which requests are slow, and exposes that (plus a few basic totals and per-process request, hook, job and memory metrics) as Prometheus metrics. Works on Redmine 5.1 - 7.x.'
-  version '1.4.0'
+  version '1.4.1'
   url 'https://github.com/expertZentrale/redmine_expert_metrics'
   requires_redmine :version_or_higher => '5.0'
 

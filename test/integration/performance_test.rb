@@ -1,9 +1,20 @@
 require File.expand_path(File.dirname(__FILE__) + '/../test_helper')
 
 # A listener on a hook every HTML page calls, so a real request shows up in the
-# hook series.
+# hook series. With sql_seconds set, it also sends a statement of that length
+# while the layout renders, as a template running a slow query would.
 class ExpertMetricsPerformanceIntegrationHook < Redmine::Hook::ViewListener
+  class << self
+    attr_accessor :sql_seconds
+  end
+
   def view_layouts_base_html_head(_context = {})
+    seconds = self.class.sql_seconds
+    if seconds
+      ActiveSupport::Notifications.instrument('sql.active_record', :sql => 'SELECT 1', :name => 'Simulated') do
+        sleep seconds
+      end
+    end
     ''
   end
 end
@@ -142,7 +153,36 @@ class RedmineExpertMetricsPerformanceIntegrationTest < Redmine::IntegrationTest
                  response.headers['Server-Timing'])
   end
 
+  # Rails takes the SQL out of its own view time only while the logger is at
+  # info or below; production runs at warn, where a slow query in a template
+  # or hook was counted as database and view time both.
+  def test_view_time_leaves_out_sql_run_while_rendering_at_any_log_level
+    logger = ActionController::Base.logger
+    level = logger.level
+    ExpertMetricsPerformanceIntegrationHook.sql_seconds = 0.2
+    log_user('admin', 'admin')
+
+    [Logger::WARN, Logger::DEBUG].each do |log_level|
+      logger.level = log_level
+      get '/projects'
+      assert_response :success
+
+      timing = server_timing
+      assert_operator timing['db'], :>=, 200, "log level #{log_level}"
+      assert_operator timing['view'] + timing['db'], :<=, timing['app'] + 1,
+                      "log level #{log_level}: #{response.headers['Server-Timing']}"
+    end
+  ensure
+    ExpertMetricsPerformanceIntegrationHook.sql_seconds = nil
+    logger.level = level if logger
+  end
+
   private
+
+  # {"app" => ms, "db" => ms, ...} from the Server-Timing header.
+  def server_timing
+    response.headers['Server-Timing'].to_s.scan(/(\w+);dur=([\d.]+)/).to_h { |name, ms| [name, ms.to_f] }
+  end
 
   def enable(threshold:)
     Setting.plugin_redmine_expert_metrics = {

@@ -245,6 +245,8 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     assert_select 'table.expert-metrics-slow-summary tbody tr', 1
     assert_select 'table.expert-metrics-slow-summary td.name code', :text => 'issues#show'
     assert_select 'table.expert-metrics-slow-requests tbody tr', 2
+    assert_select 'table.expert-metrics-slow-requests th', :text => 'User'
+    assert_select 'table.expert-metrics-slow-requests td.username a', :text => 'jsmith'
     assert_select 'table.expert-metrics-slow-requests details li code', :text => 'SELECT * FROM issues WHERE id = ?'
     assert_select 'p.warning a[href=?]', '/settings/plugin/redmine_expert_metrics'
 

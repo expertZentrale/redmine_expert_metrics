@@ -4,6 +4,25 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [1.4.1] - 2026-10-30
+
+### Behoben
+
+- **Ansichtszeit enthält bei Log-Level `warn` kein SQL mehr.** Die Ansichtszeit kam aus Rails'
+  `view_runtime`, das die beim Rendern gelaufenen SQL-Anweisungen nur abzieht, wenn der Logger auf
+  `info` oder niedriger steht (`ActiveRecord::Railties::ControllerRuntime#cleanup_view_runtime`).
+  Produktivinstallationen loggen auf `warn`, also zählte jede Anweisung aus einem Template oder
+  Hook-Listener als Datenbank- *und* als Ansichtszeit — auf der Seite Langsame Anfragen, in
+  `redmine_http_request_view_seconds_total`, in der Warn-Zeile und im `Server-Timing`-Header (eine
+  Ticketseite mit 2537 ms SQL zeigte 2722 ms Ansichten von 2797 ms gesamt). `RequestTimingPatch`
+  misst das Rendern jetzt selbst und zieht das dabei gezählte SQL ab, unabhängig vom Log-Level.
+  Datenbank-, Hook- und Gesamtzeit waren immer richtig.
+
+### Geändert
+
+- Seite Langsame Anfragen: Die Benutzerspalte heißt *Benutzer* statt der Login-Bezeichnung aus
+  dem Core (*Mitgliedsname*).
+
 ## [1.4.0] - 2026-10-30
 
 ### Hinzugefügt
