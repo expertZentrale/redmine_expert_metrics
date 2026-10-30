@@ -116,6 +116,11 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     assert_equal 'SELECT ?, ?, $? FROM t', fingerprint
   end
 
+  def test_fingerprint_drops_scientific_and_hex_numbers
+    fingerprint = Performance.fingerprint("SELECT * FROM t WHERE a = 1e10 AND b = 2.5E-3 AND c = 0xDEADBEEF AND d = X'CAFE'")
+    assert_equal 'SELECT * FROM t WHERE a = ? AND b = ? AND c = ? AND d = X?', fingerprint
+  end
+
   def test_fingerprint_is_truncated
     assert_operator Performance.fingerprint("SELECT #{'a' * 5000}").length, :<=, Performance::SQL_MAX_LENGTH + 3
   end

@@ -243,21 +243,22 @@ module RedmineExpertMetrics
       response.headers['Server-Timing'] = parts.join(', ')
     end
 
+    # Every slow request gets its warn line; only the database rows are rate
+    # limited, since those are what would add load to a struggling database.
     def record_slow(controller, labels, stats, duration_ms, gc_ms, status)
-      return unless slow_write_allowed?
       request = controller.request
-      hooks = stats.hooks.map do |(hook, listener), (ms, calls)|
-        { 'hook' => hook, 'listener' => listener, 'ms' => ms.round(1), 'calls' => calls }
-      end
-      hooks = hooks.sort_by { |entry| -entry['ms'] }.first(TOP_HOOKS)
-
       Rails.logger.warn(
         "redmine_expert_metrics: slow request #{labels['controller']}##{labels['action']} " \
         "#{duration_ms.round}ms (db #{stats.sql_ms.round}ms/#{stats.sql_count} queries, " \
         "view #{stats.view_ms.to_f.round}ms, hooks #{stats.hooks_ms.round}ms) " \
         "status=#{status} path=#{request.path} request_id=#{request.request_id}"
       )
-      return unless ExpertMetricsSlowRequest.available?
+      return unless slow_write_allowed? && ExpertMetricsSlowRequest.available?
+
+      hooks = stats.hooks.map do |(hook, listener), (ms, calls)|
+        { 'hook' => hook, 'listener' => listener, 'ms' => ms.round(1), 'calls' => calls }
+      end
+      hooks = hooks.sort_by { |entry| -entry['ms'] }.first(TOP_HOOKS)
 
       ExpertMetricsSlowRequest.create!(
         :created_at      => Time.now,
@@ -317,14 +318,16 @@ module RedmineExpertMetrics
     # values (search terms, e-mail addresses) end up in the slow-request table:
     # single-quoted strings everywhere, double-quoted ones where they are
     # strings (MySQL/MariaDB - elsewhere they are identifiers), PostgreSQL
-    # dollar-quoted strings, and numbers.
+    # dollar-quoted strings, and numbers (decimal, scientific, 0x hex; X'..'
+    # and b'..' are covered by the quotes).
     def fingerprint(sql)
       text = sql.to_s.gsub(/'(?:[^'\\]|\\.|'')*'/, '?')
       text = text.gsub(/"(?:[^"\\]|\\.|"")*"/, '?') if double_quoted_strings?
       # The empty alternative, not "?": a back-reference to a group that did not
       # take part never matches in Ruby, which would let $$...$$ through.
       text = text.gsub(/\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?\$\1\$/m, '?')
-      text = text.gsub(/\b\d+(?:\.\d+)?\b/, '?')
+      text = text.gsub(/\b0x[0-9A-Fa-f]+\b/, '?')
+      text = text.gsub(/\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/, '?')
       text = text.gsub(/\(\?(?:\s*,\s*\?)+\)/, '(?...)')
       text = text.gsub(/\s+/, ' ').strip
       text.length > SQL_MAX_LENGTH ? text[0, SQL_MAX_LENGTH] + '...' : text

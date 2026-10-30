@@ -95,6 +95,19 @@ class RedmineExpertMetricsPerformanceIntegrationTest < Redmine::IntegrationTest
     assert row.hook_list.all? { |entry| entry['listener'].present? && entry['hook'].present? && entry['calls'] > 0 }
   end
 
+  # The rate limit caps stored rows, not the warn line every slow request gets.
+  def test_rate_limited_slow_requests_are_still_logged
+    enable(:threshold => 0)
+    Performance::MAX_SLOW_WRITES_PER_MINUTE.times { Performance.slow_write_allowed? }
+    lines = []
+    Rails.logger.stubs(:warn).with { |message = nil| lines << message.to_s; true }
+    get '/projects'
+
+    assert_response :success
+    assert_equal 0, ExpertMetricsSlowRequest.count
+    assert lines.any? { |line| line.include?('slow request projects#index') }, lines.inspect
+  end
+
   def test_scrape_is_not_timed_and_carries_the_series
     get '/projects'
     get '/metrics'
