@@ -23,6 +23,9 @@
 - README: Die PromQL-Beispiele für die beiden Mailzähler summierten über die Pods
   (`sum by (project)`) und vervielfachten diese datenbankweiten Werte damit mit der Zahl der Pods.
   Sie verwenden jetzt `max by (project)`, wie das Dashboard.
+- `scripts/seed_screenshot_demo.rb` setzt den Helpdesk-Mailzähler direkt, statt `HelpdeskMessage`-
+  Zeilen anzulegen (die der neue Patch noch einmal zählen würde, eingehende ohne Postfach gar nicht),
+  und das Teardown stellt diesen Zähler wie den Benachrichtigungszähler wieder her.
 
 ## [1.6.0] - 2026-11-02
 

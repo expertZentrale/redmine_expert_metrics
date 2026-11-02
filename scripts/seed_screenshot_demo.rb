@@ -282,16 +282,20 @@ end
 
 say "created #{projects.size} projects, #{Issue.count} issues"
 
-# --- notification counters ---------------------------------------------------
+# --- mail counters -------------------------------------------------------------
 
-# Written by the plugin's own Mail observer in normal operation; seeded directly
-# here because nothing is actually sending mail on a screenshots stack.
+# The counters this seed writes; teardown restores exactly these names.
+SEEDED_COUNTERS = [ExpertMetricsCounter::NOTIFICATIONS_SENT, ExpertMetricsCounter::HELPDESK_MAILS].freeze
+
+# Written by the plugin's own Mail observer and HelpdeskMessagePatch in normal
+# operation; seeded directly here because nothing is actually sending or
+# receiving mail on a screenshots stack.
 if ExpertMetricsCounter.available?
   # Reset to the recorded baseline first: increment! on top of a previous run's
   # numbers would stack them, and the screenshot would drift upwards every time.
-  ExpertMetricsCounter.where(:name => ExpertMetricsCounter::NOTIFICATIONS_SENT).delete_all
+  ExpertMetricsCounter.where(:name => SEEDED_COUNTERS).delete_all
   Array(counters_before).each do |row|
-    next unless row['name'] == ExpertMetricsCounter::NOTIFICATIONS_SENT
+    next unless SEEDED_COUNTERS.include?(row['name'])
     ExpertMetricsCounter.create!(:name => row['name'], :label => row['label'],
                                  :value => row['value'], :updated_on => Time.current)
   end
@@ -309,26 +313,21 @@ end
 
 # --- helpdesk mail ------------------------------------------------------------
 
-# redmine_helpdesk_mails_total is one of the plugin's selling points, and the
-# collector reads it straight from helpdesk_messages. Without a few rows the
-# metric renders as a HELP block with no samples under it. Guarded, because the
-# helpdesk plugin is optional.
-if RedmineExpertMetrics::Collector.helpdesk_available?
+# redmine_helpdesk_mails_total is one of the plugin's selling points. Since
+# 1.6.1 it is counted as the helpdesk records each mail (HelpdeskMessagePatch),
+# so it is seeded into the counter like the notifications above, not as
+# HelpdeskMessage rows: those would be counted again by the patch, or not at all
+# for incoming mail without a mailbox. Guarded, because the helpdesk plugin is
+# optional - without it the collector reports no helpdesk series anyway.
+if RedmineExpertMetrics::Collector.helpdesk_available? && ExpertMetricsCounter.available?
   volumes = { 'in' => [148, 92, 21, 44], 'out' => [131, 80, 17, 39], 'init' => [12, 6, 3, 5] }
-  total = 0
   projects.each_with_index do |project, i|
-    issue = Issue.where(:project_id => project.id).first
-    next if issue.nil?
     volumes.each do |direction, per_project|
-      per_project[i].times do |n|
-        HelpdeskMessage.create!(:issue => issue, :direction => direction,
-                                :subject => "Demo message #{n + 1}",
-                                :sent_at => NOW - (n + 1).hours)
-        total += 1
-      end
+      ExpertMetricsCounter.increment!(ExpertMetricsCounter::HELPDESK_MAILS,
+                                      "#{project.identifier}:#{direction}", per_project[i])
     end
   end
-  say "created #{total} helpdesk messages"
+  say "seeded helpdesk mail counters (#{volumes.values.flatten.sum} mails)"
 else
   say 'helpdesk plugin not installed - skipping mail metrics'
 end

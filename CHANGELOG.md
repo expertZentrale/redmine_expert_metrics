@@ -22,6 +22,9 @@
 - README: the PromQL examples for the two mail counters summed over pods (`sum by (project)`),
   which multiplies these database-wide values by the number of pods; they use `max by (project)`
   now, like the dashboard.
+- `scripts/seed_screenshot_demo.rb` seeds the helpdesk mail counter directly instead of creating
+  `HelpdeskMessage` rows (which the new patch would count again, or not at all for incoming mail
+  without a mailbox), and the teardown restores that counter like the notification counter.
 
 ## [1.6.0] - 2026-11-02
 
