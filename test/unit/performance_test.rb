@@ -72,6 +72,31 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     if File.exist?('/proc/self/status')
       assert_match(/^redmine_process_resident_memory_bytes \d+$/, text)
     end
+    assert_includes text, '# TYPE redmine_db_roundtrip_seconds gauge'
+    assert_match(/^redmine_db_roundtrip_seconds \d+(\.\d+)?(e-\d+)?$/, text)
+  end
+
+  # Timed on the database, not served from the query cache that wraps every
+  # controller action - a cached answer would read 0 however slow the link is.
+  def test_db_roundtrip_reaches_the_database_inside_the_query_cache
+    statements = []
+    callback = lambda { |*, payload| statements << payload[:sql] unless payload[:cached] }
+    seconds = nil
+    ActiveSupport::Notifications.subscribed(callback, 'sql.active_record') do
+      ActiveRecord::Base.cache do
+        Performance.db_roundtrip_seconds
+        seconds = Performance.db_roundtrip_seconds
+      end
+    end
+
+    assert_equal ['SELECT 1', 'SELECT 1'], statements
+    assert_operator seconds, :>, 0
+  end
+
+  def test_db_roundtrip_is_left_out_when_the_database_fails
+    ActiveRecord::Base.stubs(:uncached).raises(ActiveRecord::ConnectionNotEstablished)
+    assert_nil Performance.db_roundtrip_seconds
+    assert_not Performance.process_stats.key?('db_roundtrip_seconds')
   end
 
   # --- Per-request accounting -------------------------------------------------

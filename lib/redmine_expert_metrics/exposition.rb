@@ -142,6 +142,11 @@ module RedmineExpertMetrics
         counter(lines, 'redmine_ruby_allocated_objects_total', 'Objects allocated by this process since it started.')
         lines << sample('redmine_ruby_allocated_objects_total', {}, process['allocated_objects'])
       end
+      if process['db_roundtrip_seconds']
+        gauge(lines, 'redmine_db_roundtrip_seconds',
+              'Time of a SELECT 1 on this process\'s database connection, measured at scrape. Every statement on this pod waits at least this long.')
+        lines << sample('redmine_db_roundtrip_seconds', {}, number(process['db_roundtrip_seconds']))
+      end
       puma = process['puma']
       return if puma.nil?
       {

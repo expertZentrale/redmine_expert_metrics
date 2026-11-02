@@ -85,6 +85,7 @@ Solange *Performance-Metriken erfassen* eingeschaltet ist, enthält `/metrics` z
 | `redmine_ruby_gc_seconds_total` | – | Zeit in der Garbage Collection (Counter, Ruby 3.1+) |
 | `redmine_ruby_heap_live_slots`, `redmine_ruby_allocated_objects_total`, `redmine_ruby_threads` | – | Kennzahlen zu Ruby-Heap und Threads |
 | `redmine_puma_backlog`, `redmine_puma_running`, `redmine_puma_pool_capacity`, `redmine_puma_max_threads` | – | Puma-Threadpool (nur im Single-Modus) |
+| `redmine_db_roundtrip_seconds` | – | Dauer eines `SELECT 1` über die Datenbankverbindung des Prozesses, bei jedem Scrape gemessen; jede Anweisung dieses Pods wartet mindestens so lange |
 
 ## Wie „aktiv“ gemessen wird
 
@@ -189,6 +190,11 @@ topk(10, sum by (controller, action) (rate(redmine_http_request_duration_seconds
 
 # Welcher Plugin-Hook kostet am meisten pro Sekunde Laufzeit
 topk(10, sum by (listener) (rate(redmine_hook_seconds_total[1h])))
+
+# Durchschnittliche Zeit pro SQL-Anweisung je Pod: springt ein Pod, während die anderen
+# flach bleiben, wartet er auf seine Datenbankverbindung, nicht auf eine schwere Abfrage
+sum by (pod) (rate(redmine_http_request_db_seconds_total[5m]))
+  / sum by (pod) (rate(redmine_http_request_sql_queries_total[5m]))
 ```
 
 Sinnvolle Alarme (nicht mitgeliefert, an die eigene Installation anpassen):
@@ -199,6 +205,7 @@ Sinnvolle Alarme (nicht mitgeliefert, an die eigene Installation anpassen):
 | `redmine_process_resident_memory_bytes` über 85 % des Container-Limits | Speicherwachstum Richtung OOM-Kill |
 | `rate(redmine_ruby_gc_seconds_total[5m])` über 0,1 | mehr als 10 % der Laufzeit in der Garbage Collection |
 | `redmine_puma_backlog` über 0 für 5 Minuten | Anfragen warten auf einen Thread |
+| `max_over_time(redmine_db_roundtrip_seconds[5m])` über 0,05 | die Datenbank oder der Netzweg dorthin antwortet langsam; jede Seite dieses Pods ist langsam |
 
 ## Wie Mails gezählt werden
 
@@ -284,8 +291,8 @@ aktive Projekte, das Mailaufkommen von Helpdesk und Benachrichtigungen, REST-API
 Anfragen pro Stunde nach Methode und Anmeldeart, eine Zeile zur Scrape-Gesundheit mit
 Sammeldauer und Status je Ziel sowie eine Performance-Zeile: Antwortzeit-Perzentile von Ticketseite,
 Ticketliste und Speichern, die langsamsten Aktionen, Datenbank- gegen Ansichts- gegen Hook-Zeit,
-SQL-Anweisungen pro Anfrage, Hook-Zeit je Plugin, Hintergrundjobs sowie Speicher, GC und Puma je
-Pod. Eine Variable wählt die Installation: **Job**,
+SQL-Anweisungen pro Anfrage, Hook-Zeit je Plugin, Hintergrundjobs, Speicher, GC und Puma je Pod
+sowie Datenbank-Roundtrip und Zeit pro SQL-Anweisung je Pod. Eine Variable wählt die Installation: **Job**,
 der Scrape-Job, der diese Metriken ausliefert.
 
 Drei Feinheiten stecken in den Abfragen selbst, statt sie dem Leser zu überlassen:

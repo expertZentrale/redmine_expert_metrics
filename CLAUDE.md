@@ -52,6 +52,9 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   sets `Server-Timing` for admins and writes an `ExpertMetricsSlowRequest` over the threshold
   (≤ 30/min/process, SQL fingerprinted — literals → `?`; `"…"` is a string only on MySQL/MariaDB,
   `Performance.double_quoted_strings?`). Jobs via `perform.active_job`.
+  `Performance.process_stats` (read at scrape) also times one `SELECT 1` past the query cache
+  (`db_roundtrip_seconds`, gauge `redmine_db_roundtrip_seconds`): a pod whose every statement is
+  slow is waiting on its connection, which the request series cannot tell from a slow query.
   **These series are per process**: `ExpertMetricsController#prometheus` appends
   `Exposition.render_performance` *after* the cached snapshot (never put them into
   `Collector.snapshot` — it is shared via Redis across pods) and dashboards aggregate them with

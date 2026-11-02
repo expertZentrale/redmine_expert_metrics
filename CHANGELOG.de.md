@@ -4,6 +4,21 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [1.5.0] - 2026-11-02
+
+### Hinzugefügt
+
+- **`redmine_db_roundtrip_seconds`**: jeder Scrape misst ein `SELECT 1` über die
+  Datenbankverbindung des Prozesses, am Query-Cache vorbei (`Performance.db_roundtrip_seconds`). In
+  Produktion kamen die meisten langsamen Seiten aus Minuten, in denen *jede* Anweisung eines Pods
+  0,1–2 s brauchte, selbst ein Zugriff über die ID, während der andere Pod in wenigen Millisekunden
+  antwortete und seine CPU frei war — ein Problem der Datenbankverbindung, keine langsame Abfrage,
+  und in den Anfrage-Serien nicht zu sehen. Die Metrik zeigt es je Pod. Nur bei eingeschaltetem
+  *Performance-Metriken erfassen*; fehlt, wenn die Anweisung scheitert.
+- Grafana-Dashboard: *Database round trip per pod* und *Time per SQL statement per pod* in der
+  Performance-Zeile, dazu ein Hinweis zum Lesen. README: die Metrik, eine Abfrage für die Zeit pro
+  Anweisung je Pod und ein Alarmvorschlag.
+
 ## [1.4.1] - 2026-10-30
 
 ### Behoben

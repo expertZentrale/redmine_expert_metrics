@@ -85,6 +85,7 @@ series (see [Performance metrics](#performance-metrics)):
 | `redmine_ruby_gc_seconds_total` | – | time spent in garbage collection (counter, Ruby 3.1+) |
 | `redmine_ruby_heap_live_slots`, `redmine_ruby_allocated_objects_total`, `redmine_ruby_threads` | – | Ruby heap and thread figures |
 | `redmine_puma_backlog`, `redmine_puma_running`, `redmine_puma_pool_capacity`, `redmine_puma_max_threads` | – | Puma thread pool (single mode only) |
+| `redmine_db_roundtrip_seconds` | – | time of one `SELECT 1` on the process's database connection, taken at each scrape; every statement of that pod waits at least this long |
 
 ## How "active" is measured
 
@@ -181,6 +182,11 @@ topk(10, sum by (controller, action) (rate(redmine_http_request_duration_seconds
 
 # Which plugin hook costs most per second of wall time
 topk(10, sum by (listener) (rate(redmine_hook_seconds_total[1h])))
+
+# Average time per SQL statement by pod: one pod jumping while the others stay flat
+# is waiting on its database connection, not on one heavy query
+sum by (pod) (rate(redmine_http_request_db_seconds_total[5m]))
+  / sum by (pod) (rate(redmine_http_request_sql_queries_total[5m]))
 ```
 
 Alerts worth having (not shipped, adjust to your installation):
@@ -191,6 +197,7 @@ Alerts worth having (not shipped, adjust to your installation):
 | `redmine_process_resident_memory_bytes` above 85 % of the container limit | memory growth heading for an OOM kill |
 | `rate(redmine_ruby_gc_seconds_total[5m])` above 0.1 | more than 10 % of wall time spent in GC |
 | `redmine_puma_backlog` above 0 for 5 minutes | requests waiting for a thread |
+| `max_over_time(redmine_db_roundtrip_seconds[5m])` above 0.05 | the database or the network path to it answers slowly; every page on that pod is slow |
 
 ## How mails are counted
 
@@ -276,7 +283,8 @@ projects, helpdesk and notification mail volume, REST API users and requests per
 and authentication, a scrape-health row with collection time and per-target status, and a
 performance row: response-time percentiles of the issue page, list and update, the slowest
 actions, database versus view versus hook time, SQL statements per request, hook time per plugin,
-background jobs, and memory, GC and Puma per pod. One variable selects the installation: **Job**, the scrape job that serves these
+background jobs, memory, GC and Puma per pod, and database round trip and time per SQL statement
+per pod. One variable selects the installation: **Job**, the scrape job that serves these
 metrics.
 
 Three details are built into the queries rather than left to the reader:
