@@ -43,7 +43,7 @@ module RedmineExpertMetrics
 
       if snapshot['helpdesk_mails']
         counter(lines, 'redmine_helpdesk_mails_total',
-                'Mails recorded by redmine_expert_helpdesk per project: in = received from customers, out = sent to customers, init = initial mail of a ticket opened in Redmine.')
+                'Mails recorded by redmine_expert_helpdesk per project: in = received from customers, out = sent to customers, init = initial mail of a ticket opened in Redmine. Counted when the mail is recorded, under the ticket\'s project at that time; moving or deleting tickets does not lower it.')
         snapshot['helpdesk_mails'].each do |project, directions|
           directions.each do |direction, count|
             lines << sample('redmine_helpdesk_mails_total',

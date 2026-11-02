@@ -12,6 +12,7 @@ require 'redmine'
 require File.expand_path('../lib/redmine_expert_metrics/collector', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/exposition', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/mail_observer', __FILE__)
+require File.expand_path('../lib/redmine_expert_metrics/helpdesk_message_patch', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/api_usage_patch', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/purgeable', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/registry', __FILE__)
@@ -23,7 +24,7 @@ Redmine::Plugin.register :redmine_expert_metrics do
   name 'Redmine expert Metrics'
   author 'Dennis Buehring'
   description 'Shows who is currently working in Redmine, who uses the REST API with which client and which requests are slow, and exposes that (plus a few basic totals and per-process request, hook, job and memory metrics) as Prometheus metrics. Works on Redmine 5.1 - 7.x.'
-  version '1.6.0'
+  version '1.6.1'
   url 'https://github.com/expertZentrale/redmine_expert_metrics'
   requires_redmine :version_or_higher => '5.0'
 
@@ -61,6 +62,14 @@ end
 # Count delivered notification mails. Mail.register_observer ignores a module
 # that is already registered, so re-running init.rb (dev reload) is harmless.
 ActionMailer::Base.register_observer(RedmineExpertMetrics::MailObserver)
+
+# Count helpdesk mails as redmine_expert_helpdesk records them (see
+# HelpdeskMessagePatch). Without that plugin there is nothing to count. Guarded
+# like the prepends below, because init.rb runs again on every dev reload.
+if defined?(::HelpdeskMessage) &&
+   !::HelpdeskMessage.included_modules.include?(RedmineExpertMetrics::HelpdeskMessagePatch)
+  ::HelpdeskMessage.include(RedmineExpertMetrics::HelpdeskMessagePatch)
+end
 
 # Record API-key usage. Redmine runs init.rb inside a to_prepare callback (and
 # again on every dev reload), so patch directly and guard against prepending twice.

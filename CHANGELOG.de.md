@@ -4,6 +4,26 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [1.6.1] - 2026-11-02
+
+### Behoben
+
+- **`redmine_helpdesk_mails_total` sprang um den Mailbestand eines ganzen Projekts, wenn ein Ticket
+  verschoben oder gelöscht wurde.** Der Collector zählte `helpdesk_messages` nach dem *aktuellen*
+  Projekt jedes Tickets. Ein Ticket aus einem Projekt zu verschieben (oder zu löschen, was seine
+  Nachrichten mitlöscht) senkte also den Wert dieses Projekts, und Prometheus wertet jeden
+  Rückgang eines Counters als Neustart: `increase()` und `rate()` rechnen dann den ganzen vorigen
+  Wert dazu. In Produktion zeigte ein Projekt über drei Tage 1.353 empfangene Mails statt etwa 4.
+  Das Plugin zählt jetzt jede Mail in dem Moment, in dem redmine_expert_helpdesk sie anlegt, in
+  `expert_metrics_counters` unter dem Projekt, in dem das Ticket in diesem Moment liegt
+  (`HelpdeskMessagePatch`, ein `after_commit` auf `HelpdeskMessage`), so wie
+  `redmine_notifications_sent_total` schon bisher. Metrikname, Labels und Typ bleiben gleich, die
+  Dashboards funktionieren weiter. Mails, die `LegacyContactsImport` aus redmine_contacts_helpdesk
+  übernimmt (eingehend, ohne Postfach), werden nicht gezählt.
+- README: Die PromQL-Beispiele für die beiden Mailzähler summierten über die Pods
+  (`sum by (project)`) und vervielfachten diese datenbankweiten Werte damit mit der Zahl der Pods.
+  Sie verwenden jetzt `max by (project)`, wie das Dashboard.
+
 ## [1.6.0] - 2026-11-02
 
 ### Hinzugefügt

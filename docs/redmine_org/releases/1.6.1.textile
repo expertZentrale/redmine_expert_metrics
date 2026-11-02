@@ -1,0 +1,9 @@
+h3. redmine_expert_metrics 1.6.1 — 2026-11-02
+
+h4. Fixed
+
+* *Helpdesk mail counts no longer spike when a ticket is moved or deleted.* @redmine_helpdesk_mails_total@ was counted from the helpdesk's message table by each ticket's current project, so moving a ticket to another project (or deleting it) lowered the value, and Prometheus treats every drop of a counter as a restart. The dashboard then showed a project's whole mail history as new mail - 1,353 received mails in three days instead of about 4. Each mail is now counted once, when the helpdesk records it, under the project the ticket is in at that moment. Metric name, labels and dashboard stay the same. Mail copied over by the helpdesk's legacy import is not counted.
+
+h4. Upgrade notes
+
+No migrations. Replace the plugin directory and restart. The helpdesk mail series start again at 0 once; @increase()@ and @rate()@ handle that as a normal counter reset.

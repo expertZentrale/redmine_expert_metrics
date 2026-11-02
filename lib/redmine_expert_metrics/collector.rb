@@ -81,15 +81,18 @@ module RedmineExpertMetrics
 
     # Mails recorded by redmine_expert_helpdesk, per project identifier and
     # direction ("in" = received from customers, "out" = sent to customers,
-    # "init" = initial mail of a ticket opened in Redmine). Cumulative counts
-    # straight from helpdesk_messages, so Prometheus can treat them as counters.
-    # nil when the helpdesk plugin is not installed.
+    # "init" = initial mail of a ticket opened in Redmine). Counted as each mail
+    # is recorded (HelpdeskMessagePatch), under the ticket's project at that
+    # moment, so moving or deleting tickets never lowers them. Counting
+    # helpdesk_messages by the tickets' current project did, and Prometheus read
+    # every drop as a counter reset. nil when the helpdesk plugin is not
+    # installed, empty until the counter migration has run.
     def helpdesk_mail_counts
       return nil unless helpdesk_available?
-      rows = ::HelpdeskMessage.joins(:issue => :project)
-                              .group('projects.identifier', 'helpdesk_messages.direction').count
-      rows.each_with_object({}) do |((identifier, direction), count), h|
-        (h[identifier] ||= {})[direction] = count
+      return {} unless ExpertMetricsCounter.available?
+      ExpertMetricsCounter.values(ExpertMetricsCounter::HELPDESK_MAILS).each_with_object({}) do |(label, count), h|
+        identifier, direction = label.split(':', 2)
+        (h[identifier] ||= {})[direction.to_s] = count
       end.sort.to_h
     end
 

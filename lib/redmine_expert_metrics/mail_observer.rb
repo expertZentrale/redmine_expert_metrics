@@ -3,8 +3,8 @@
 # Registered as a Mail observer (init.rb), so it sees every delivered message
 # regardless of delivery method or ActiveJob. Core's Mailer stamps its mails
 # with "X-Mailer: Redmine" and "X-Redmine-Project: <identifier>"; mails from
-# redmine_expert_helpdesk to customers carry neither and are counted from the
-# plugin's own helpdesk_messages table instead (see Collector). Account and
+# redmine_expert_helpdesk to customers carry neither and are counted when the
+# helpdesk records them instead (see HelpdeskMessagePatch). Account and
 # security mails have no project and land under the empty label.
 #
 # Redmine sends one mail per recipient, so the counter is "notifications

@@ -56,7 +56,7 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
 | `redmine_projects_total` | `status` = `active` | Projekte |
 | `redmine_issues_total` | `state` = `open`, `closed` | Tickets nach dem Geschlossen-Kennzeichen ihres Status |
 | `redmine_notifications_sent_total` | `project` | Benachrichtigungs-Mails, die der Redmine-Kern an seine Benutzer zugestellt hat, eine pro Empfänger (Counter); leeres Projekt für Konto- und Sicherheitsmails |
-| `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | Mails aus [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` von Kunden empfangen, `out` an Kunden gesendet (Antworten, Autoresponder, Nachfragen), `init` Erstmail eines in Redmine angelegten Tickets. Nur vorhanden, wenn dieses Plugin installiert ist (Counter) |
+| `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | Mails aus [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` von Kunden empfangen, `out` an Kunden gesendet (Antworten, Autoresponder, Nachfragen), `init` Erstmail eines in Redmine angelegten Tickets. Gezählt beim Anlegen der Mail, im Projekt des Tickets zu diesem Zeitpunkt, ab 1.6.1 (beginnt bei 0). Nur vorhanden, wenn dieses Plugin installiert ist (Counter) |
 | `redmine_api_requests_total`¹ | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | mit API-Zugangsdaten angemeldete Anfragen (Counter) |
 | `redmine_api_users`¹ | `window` = `1d`, `7d`, `30d` | verschiedene Benutzer mit API-Anfragen in den letzten n Kalendertagen, heute eingeschlossen |
 | `redmine_api_keys_total`¹ | – | Benutzer mit API-Schlüssel |
@@ -214,15 +214,18 @@ Sinnvolle Alarme (nicht mitgeliefert, an die eigene Installation anpassen):
   Redmine schickt eine Mail pro Empfänger, gezählt werden also „zugestellte Mails“, nicht
   „Ereignisse“. Die Zähler liegen in der plugineigenen Tabelle `expert_metrics_counters`
   (eine Migration), gemeinsam für alle Pods und über Neustarts hinweg.
-- **Kundenmails des Helpdesk-Plugins**: direkt aus dessen Tabelle `helpdesk_messages`, nach
-  Projekt und Richtung gruppiert. Diese Mails tragen den Kern-Header nicht, die beiden
-  Metriken überschneiden sich also nie.
+- **Kundenmails des Helpdesk-Plugins**: in derselben Tabelle gezählt, sobald der Helpdesk eine
+  Mail anlegt, nach Projekt und Richtung. Das Projekt ist das, in dem das Ticket in diesem Moment
+  liegt; späteres Verschieben oder Löschen von Tickets senkt den Wert nie. Mails, die der
+  Legacy-Import des Helpdesks übernimmt (eingehend, ohne Postfach), werden nicht gezählt. Diese
+  Mails tragen den Kern-Header nicht, die beiden Metriken überschneiden sich also nie.
 
-Beide sind kumulativ, in Prometheus daher `increase()` / `rate()` verwenden:
+Beide sind kumulativ, in Prometheus daher `increase()` / `rate()` verwenden. Jeder Pod meldet
+dieselben Werte (siehe unten), also mit `max` zusammenfassen:
 
 ```promql
-sum by (project) (increase(redmine_helpdesk_mails_total{direction="in"}[24h]))
-sum by (project) (increase(redmine_notifications_sent_total[1h]))
+max by (project) (increase(redmine_helpdesk_mails_total{direction="in"}[24h]))
+max by (project) (increase(redmine_notifications_sent_total[1h]))
 ```
 
 ## Mehrere Instanzen (Kubernetes)
