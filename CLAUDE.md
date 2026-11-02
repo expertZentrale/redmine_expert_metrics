@@ -68,7 +68,9 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
 
 ## Conventions
 
-- Code comments English; UI German via `config/locales/{en,de}.yml` (both files).
+- Code comments English; UI German via `config/locales/*.yml`. Seven languages (`en`, `de`, `es`,
+  `fr`, `it`, `pt`, `pt-BR`): every new or changed key goes into all of them, same order as
+  `en.yml`, same `%{…}` placeholders (`test/unit/locale_files_test.rb` enforces it).
 - Docs bilingual: `README.md` / `CHANGELOG.md` are authoritative, `README.de.md` /
   `CHANGELOG.de.md` are the German mirror — update both for every user-facing change.
 - "expert" (the company) is always lowercase in user-facing text — the admin menu entry,

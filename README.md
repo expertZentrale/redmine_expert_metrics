@@ -246,6 +246,17 @@ production:
 
 `/metrics` works even when *Authentication required* is enabled in Redmine's settings.
 
+## Languages
+
+The user interface ships in English, German, Spanish, French, Italian and Portuguese (`en`, `de`,
+`es`, `fr`, `it`, `pt`, `pt-BR`). Redmine shows each user the language set in their account, or the
+default language under *Administration » Settings » Display*; for any other language it falls back
+to English. This documentation is kept in English and German.
+
+Corrections from native speakers are welcome as a pull request on `config/locales/<language>.yml`.
+`test/unit/locale_files_test.rb` checks that every language has every key of `en.yml`, in the same
+order and with the same `%{…}` placeholders.
+
 ## Installation
 
 ```bash
