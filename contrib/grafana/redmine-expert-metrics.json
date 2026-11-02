@@ -3078,6 +3078,204 @@
       "pluginVersion": "11.0.0"
     },
     {
+      "id": 38,
+      "type": "timeseries",
+      "title": "Database round trip per pod",
+      "description": "Time of one `SELECT 1` on each process's database connection, taken at every scrape. Normally well under a millisecond. When it rises, every statement on that pod waits about as long and all of its pages slow down together - a slow database server, network path or connection, not a slow query.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 92
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "min": 0,
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (pod, instance) (max_over_time(redmine_db_roundtrip_seconds{job=~\"$job\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{pod}} {{instance}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
+      "id": 39,
+      "type": "timeseries",
+      "title": "Time per SQL statement per pod",
+      "description": "Average time of the SQL statements requests sent, by pod. A few milliseconds is normal; heavy queries pull it up for everyone. A pod whose line jumps while the others stay flat is waiting on its database connection - compare with *Database round trip per pod*.\n\nPer-process series: every pod reports its own share, so the query adds pods up with `sum` (unlike the rest of this dashboard). Only present while *Record performance metrics* is switched on.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 92
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s",
+          "min": 0,
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (pod, instance) (rate(redmine_http_request_db_seconds_total{job=~\"$job\"}[$__rate_interval]))\n/ sum by (pod, instance) (rate(redmine_http_request_sql_queries_total{job=~\"$job\"}[$__rate_interval]))",
+          "range": true,
+          "instant": false,
+          "refId": "A",
+          "legendFormat": "{{pod}} {{instance}}"
+        }
+      ],
+      "pluginVersion": "11.0.0"
+    },
+    {
       "id": 33,
       "type": "timeseries",
       "title": "Background jobs (p95 by job)",
@@ -3090,7 +3288,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 92
+        "y": 100
       },
       "fieldConfig": {
         "defaults": {
@@ -3188,7 +3386,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 92
+        "y": 100
       },
       "fieldConfig": {
         "defaults": {
@@ -3283,7 +3481,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 100
+        "y": 108
       },
       "panels": [
         {
@@ -3298,7 +3496,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 101
+            "y": 109
           },
           "options": {
             "mode": "markdown",
@@ -3307,7 +3505,7 @@
               "showLineNumbers": false,
               "showMiniMap": false
             },
-            "content": "## Reading these numbers\n\n**Every pod reports the same figures — except the performance row.** The plugin queries the Redmine database, so each replica answers `/metrics` with identical, installation-wide values. Every panel here therefore aggregates with `max`, never `sum` — `sum` would multiply everything by the number of pods. The *Performance* row is the opposite: request, hook, job and memory figures live in each process, so those panels add pods up with `sum` (or show them per pod). They appear only while *Record performance metrics* is switched on; slow requests themselves, with their slowest SQL and hooks, are on the plugin's admin page (Administration » expert Metrics » Slow requests).\n\n**\"Active\" means a browser request.** It comes from Redmine's own session tokens, whose `updated_on` core bumps on every request (at most once a minute). API-key calls and the mail fetcher create no session token and do not count — this is \"who would notice a restart\", not \"what load is the box under\". API calls have their own row.\n\n**Sessions outnumber active users.** A session token stays valid until it expires, so somebody who logged in this morning still counts as a session long after they stopped clicking.\n\n**REST API.** Only while *Record API usage* is switched on in the plugin settings (off by default) — otherwise this row stays empty. Every request authenticated by API credentials is then counted in `redmine_api_requests_total` by `method` and `auth` (`key`, `basic` = API key as Basic user, `password` = login and password via HTTP Basic, `oauth`). `redmine_api_users` counts distinct users per calendar-day window. *Which* users and scripts is on the plugin's admin page (Administration » expert Metrics » API usage) — never in Prometheus.\n\n**The mail metrics are counters.** Use `rate()` or `increase()`, as the panels above do. `redmine_helpdesk_mails_total` only exists when [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed; those panels stay empty otherwise. A notification with an empty `project` label is an account or security mail.\n\nMetric reference: [redmine_expert_metrics README](https://github.com/expertZentrale/redmine_expert_metrics#readme)."
+            "content": "## Reading these numbers\n\n**Every pod reports the same figures — except the performance row.** The plugin queries the Redmine database, so each replica answers `/metrics` with identical, installation-wide values. Every panel here therefore aggregates with `max`, never `sum` — `sum` would multiply everything by the number of pods. The *Performance* row is the opposite: request, hook, job and memory figures live in each process, so those panels add pods up with `sum` (or show them per pod). They appear only while *Record performance metrics* is switched on; slow requests themselves, with their slowest SQL and hooks, are on the plugin's admin page (Administration » expert Metrics » Slow requests).\n\n**Slow pages on one pod at a time.** When *Time per SQL statement per pod* jumps on one pod while the others stay flat, and *Database round trip per pod* rises with it, that pod is waiting on its database connection: every statement is slow, not one heavy query. Look at the database server and the network path rather than at Redmine.\n\n**\"Active\" means a browser request.** It comes from Redmine's own session tokens, whose `updated_on` core bumps on every request (at most once a minute). API-key calls and the mail fetcher create no session token and do not count — this is \"who would notice a restart\", not \"what load is the box under\". API calls have their own row.\n\n**Sessions outnumber active users.** A session token stays valid until it expires, so somebody who logged in this morning still counts as a session long after they stopped clicking.\n\n**REST API.** Only while *Record API usage* is switched on in the plugin settings (off by default) — otherwise this row stays empty. Every request authenticated by API credentials is then counted in `redmine_api_requests_total` by `method` and `auth` (`key`, `basic` = API key as Basic user, `password` = login and password via HTTP Basic, `oauth`). `redmine_api_users` counts distinct users per calendar-day window. *Which* users and scripts is on the plugin's admin page (Administration » expert Metrics » API usage) — never in Prometheus.\n\n**The mail metrics are counters.** Use `rate()` or `increase()`, as the panels above do. `redmine_helpdesk_mails_total` only exists when [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk) is installed; those panels stay empty otherwise. A notification with an empty `project` label is an account or security mail.\n\nMetric reference: [redmine_expert_metrics README](https://github.com/expertZentrale/redmine_expert_metrics#readme)."
           },
           "transparent": false,
           "pluginVersion": "11.0.0"

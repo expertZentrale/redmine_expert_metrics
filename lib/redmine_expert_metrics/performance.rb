@@ -393,7 +393,26 @@ module RedmineExpertMetrics
       stats['heap_live_slots'] = gc[:heap_live_slots] if gc.key?(:heap_live_slots)
       stats['allocated_objects'] = gc[:total_allocated_objects] if gc.key?(:total_allocated_objects)
       stats['puma'] = puma_stats
+      roundtrip = db_roundtrip_seconds
+      stats['db_roundtrip_seconds'] = roundtrip if roundtrip
       stats
+    end
+
+    # One trivial statement on this process's database connection. On a healthy
+    # link it takes well under a millisecond; while it is slow, every statement
+    # of every request on this pod waits about as long - which tells a slow
+    # database or network apart from one slow query. Bypasses the query cache.
+    def db_roundtrip_seconds
+      ActiveRecord::Base.connection_pool.with_connection do |connection|
+        ActiveRecord::Base.uncached do
+          started = monotonic
+          connection.select_value('SELECT 1', 'ExpertMetrics Roundtrip')
+          monotonic - started
+        end
+      end
+    rescue StandardError => e
+      log_error('database round trip', e)
+      nil
     end
 
     # Linux only; nil elsewhere (and the series is left out).

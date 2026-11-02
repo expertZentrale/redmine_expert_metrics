@@ -1,0 +1,10 @@
+h3. redmine_expert_metrics 1.5.0 — 2026-11-02
+
+h4. Added
+
+* *Database round trip per process.* Every scrape of @/metrics@ times one @SELECT 1@ on the process's database connection (@redmine_db_roundtrip_seconds@). When it rises, every query on that pod waits as long and all of its pages slow down together - a slow database server, network path or connection rather than a slow query. Only while _Record performance metrics_ is switched on.
+* Grafana dashboard: _Database round trip per pod_ and _Time per SQL statement per pod_ in the performance row.
+
+h4. Upgrade notes
+
+No migrations. Replace the plugin directory and restart. Re-import the dashboard from @contrib/grafana/@ for the two new panels.
