@@ -1,0 +1,9 @@
+h3. redmine_expert_metrics 1.6.0 — 2026-11-02
+
+h4. Added
+
+* *Spanish, French, Italian and Portuguese.* The user interface now ships in seven languages: English, German, Spanish, French, Italian, Portuguese (Portugal) and Portuguese (Brazil). Redmine shows each user the language of their account; other languages fall back to English.
+
+h4. Upgrade notes
+
+No migrations. Replace the plugin directory and restart.
