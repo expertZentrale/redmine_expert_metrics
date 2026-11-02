@@ -116,16 +116,20 @@ class RedmineExpertMetricsMailCounterTest < ActiveSupport::TestCase
   end
 
   def test_counting_a_helpdesk_mail_swallows_errors
+    # Before the stub, not inside it: an ensure would otherwise restore a stub
+    # that was never set (plain CI runs this plugin without the helpdesk).
     skip 'redmine_expert_helpdesk not installed' unless defined?(::HelpdeskMessage)
     sc = ExpertMetricsCounter.singleton_class
     sc.alias_method(:__orig_increment!, :increment!)
-    sc.define_method(:increment!) { |*| raise IOError, 'db gone' }
-    message = nil
-    assert_nothing_raised { message = record_mail(Issue.find(1), 'in') }
-    assert message.persisted?
-  ensure
-    sc.alias_method(:increment!, :__orig_increment!)
-    sc.remove_method(:__orig_increment!)
+    begin
+      sc.define_method(:increment!) { |*| raise IOError, 'db gone' }
+      message = nil
+      assert_nothing_raised { message = record_mail(Issue.find(1), 'in') }
+      assert message.persisted?
+    ensure
+      sc.alias_method(:increment!, :__orig_increment!)
+      sc.remove_method(:__orig_increment!)
+    end
   end
 
   def test_collect_and_observer_tolerate_missing_counter_table
