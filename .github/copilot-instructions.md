@@ -114,7 +114,8 @@ in a second user, and reset `Performance::REGISTRY` / `reset_slow_limit!` in `se
 ## CI
 
 - `.github/workflows/ci.yml` – plugin tests against Redmine 5.1/6.0/6.1/7.0-stable on a
-  fresh MariaDB.
+  fresh MariaDB, 5.1 and 7.0 also on MySQL 8.4 and PostgreSQL 17 (the database starts in a step
+  per matrix entry).
 - `.github/workflows/docker-image.yml` – smoke test against the official `redmine:*` Docker
   images: the plugin is mounted in, migrated via `REDMINE_PLUGINS_MIGRATE`, and `/login` plus
   `/metrics` have to answer.
