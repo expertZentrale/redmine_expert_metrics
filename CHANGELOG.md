@@ -4,6 +4,28 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [1.6.1] - 2026-11-02
+
+### Fixed
+
+- **`redmine_helpdesk_mails_total` spiked by a whole project's mail count when a ticket was
+  moved or deleted.** The collector counted `helpdesk_messages` by each ticket's *current*
+  project, so moving a ticket out of a project (or deleting it, which deletes its messages) lowered
+  that project's value, and Prometheus reads every drop of a counter as a reset: `increase()` and
+  `rate()` then add the whole previous value. In production one project showed 1,353 received
+  mails over three days instead of about 4. The plugin now counts each mail as
+  redmine_expert_helpdesk records it, in `expert_metrics_counters` under the ticket's project at
+  that moment (`HelpdeskMessagePatch`, an `after_commit` on `HelpdeskMessage`), the way
+  `redmine_notifications_sent_total` already worked. Metric name, labels and type are unchanged,
+  so dashboards keep working. Mail that `LegacyContactsImport` copies over from
+  redmine_contacts_helpdesk (incoming, without a mailbox) is not counted.
+- README: the PromQL examples for the two mail counters summed over pods (`sum by (project)`),
+  which multiplies these database-wide values by the number of pods; they use `max by (project)`
+  now, like the dashboard.
+- `scripts/seed_screenshot_demo.rb` seeds the helpdesk mail counter directly instead of creating
+  `HelpdeskMessage` rows (which the new patch would count again, or not at all for incoming mail
+  without a mailbox), and the teardown restores that counter like the notification counter.
+
 ## [1.6.0] - 2026-11-02
 
 ### Added

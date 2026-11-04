@@ -3,6 +3,8 @@
 # row is created on first use. Never decremented - Prometheus counter semantics.
 class ExpertMetricsCounter < ActiveRecord::Base
   NOTIFICATIONS_SENT = 'notifications_sent'.freeze
+  # Label "<project identifier>:<direction>"; identifiers never contain a colon.
+  HELPDESK_MAILS = 'helpdesk_mails'.freeze
 
   validates :name, :presence => true
 

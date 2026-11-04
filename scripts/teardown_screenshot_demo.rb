@@ -64,9 +64,12 @@ if ExpertMetricsCounter.available?
 end
 
 if ExpertMetricsCounter.available? && !baseline.nil?
-  ExpertMetricsCounter.where(:name => ExpertMetricsCounter::NOTIFICATIONS_SENT).delete_all
+  # The names the seed writes (see SEEDED_COUNTERS there); api_requests is never
+  # seeded, so its real history stays as it is.
+  seeded = [ExpertMetricsCounter::NOTIFICATIONS_SENT, ExpertMetricsCounter::HELPDESK_MAILS]
+  ExpertMetricsCounter.where(:name => seeded).delete_all
   baseline.each do |row|
-    next unless row['name'] == ExpertMetricsCounter::NOTIFICATIONS_SENT
+    next unless seeded.include?(row['name'])
     ExpertMetricsCounter.create!(:name => row['name'], :label => row['label'],
                                  :value => row['value'], :updated_on => Time.current)
   end

@@ -40,8 +40,12 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   Any error is logged and swallowed.
 - `lib/redmine_expert_metrics/mail_observer.rb` + `app/models/expert_metrics_counter.rb` –
   `Mail` observer counting core notifications (`X-Mailer: Redmine`, label `X-Redmine-Project`)
-  into `expert_metrics_counters`; helpdesk customer mails are read from `helpdesk_messages`
-  in the collector when that plugin is present.
+  into `expert_metrics_counters`. `lib/redmine_expert_metrics/helpdesk_message_patch.rb` (included
+  into `HelpdeskMessage` from init.rb when redmine_expert_helpdesk is present) counts helpdesk
+  customer mails there too (`helpdesk_mails`, label `"<project>:<direction>"`), in an
+  `after_commit` on create under the ticket's project at that moment; incoming mail without a
+  mailbox (legacy import) is skipped. Never derive a counter from current table contents:
+  moving or deleting rows lowers it, and Prometheus reads every drop as a reset (1.6.1).
 - `lib/redmine_expert_metrics/performance.rb` + `registry.rb` + `request_timing_patch.rb` +
   `hook_timing_patch.rb` – performance metrics. `RequestTimingPatch` (prepended to
   `ApplicationController#process_action`, skips `/metrics` itself) opens a `Performance::Stats` in
