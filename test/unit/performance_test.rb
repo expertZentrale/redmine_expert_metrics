@@ -188,6 +188,30 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     end
   end
 
+  # A value that starts inside the key's prefix and ends after it must not end
+  # up in the key, or long values split one statement into many shapes.
+  def test_shape_key_masks_a_string_cut_off_by_the_prefix
+    lead = "SELECT * FROM issues WHERE #{'x' * (Performance::SHAPE_KEY_LENGTH - 60)} subject = "
+    one = Performance.shape_key('Issue Load', lead + "'#{'a' * 400}'")
+    two = Performance.shape_key('Issue Load', lead + "'#{'b' * 400}'")
+    assert_equal one, two
+    assert_not_includes one.last, 'aaa'
+  end
+
+  # Long statements are fingerprinted when first seen, not kept as they came.
+  def test_long_statements_are_fingerprinted_when_first_seen
+    ids = (1..2000).to_a.join(', ')
+    stats = Performance::Stats.new
+    2.times { stats.add_sql('Issue Load', "SELECT * FROM issues WHERE subject = 'secret' AND id IN (#{ids})", 0.5, false) }
+
+    entry = stats.instance_variable_get(:@shapes).values.first
+    assert_nil entry[:sql]
+    assert_operator entry[:fingerprint].length, :<=, Performance::SQL_MAX_LENGTH + 3
+    top = stats.frequent_sql.first
+    assert_equal 2, top[:count]
+    assert_equal 'SELECT * FROM issues WHERE subject = ? AND id IN (?...)', top[:sql]
+  end
+
   # Rails 6.1 instruments some statements without a name.
   def test_unnamed_statements_are_labelled_sql
     stats = Performance::Stats.new

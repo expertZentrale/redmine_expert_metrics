@@ -174,7 +174,8 @@ with its next request.
   appear among the slowest, but heads this list (for example `919× Checklist Load`). The `warn`
   line names the top one as `most_frequent=919x Checklist Load`, so the log points at it even when
   the row was not written. Counting costs each request one short key per statement; the values are
-  removed only for the five shapes that are stored.
+  removed only for the five shapes that are stored, and right away for statements over 4,000
+  characters, so a request never holds on to its large INSERTs or IN lists.
 - **Server-Timing**: administrators get a `Server-Timing` response header (`app`, `db` with the
   query count, `view`, `hooks`, `gc`), which the browser's developer tools show under
   *Network → Timing*. Handy to check a single page in production without access to logs.

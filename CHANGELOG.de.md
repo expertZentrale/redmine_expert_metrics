@@ -21,7 +21,8 @@
   die Zeile nicht geschrieben wurde (Zeilen sind begrenzt, die Log-Zeile nicht). Jede Anfrage zahlt
   für das Zählen einen kurzen Schlüssel pro Anweisung; die Werte werden (wie bei den langsamsten
   Anweisungen) nur für die fünf gespeicherten Formen entfernt, und zwar aus der ganzen Anweisung,
-  nie aus einem abgeschnittenen Teil.
+  nie aus einem abgeschnittenen Teil. Anweisungen über 4.000 Zeichen werden schon beim ersten
+  Auftreten so reduziert, sodass eine Anfrage ihre großen INSERTs oder IN-Listen nicht festhält.
 
 ### Geändert
 

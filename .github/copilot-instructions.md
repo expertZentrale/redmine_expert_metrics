@@ -61,8 +61,9 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   sets `Server-Timing` for admins and writes an `ExpertMetricsSlowRequest` over the threshold
   (≤ 30/min/process, SQL fingerprinted — literals → `?`; `"…"` is a string only on MySQL/MariaDB,
   `Performance.double_quoted_strings?`). `Stats#add_sql` also counts statements per shape
-  (`Performance.shape_key`: name + literal-masked first 300 chars, never stored, ≤ 200 shapes per
-  request); `Stats#frequent_sql` (shapes run more than once) fingerprints the top five from their *whole* first statement only
+  (`Performance.shape_key`: name + first 300 chars with fingerprint's literals masked, a string cut by
+  the prefix masked to its end, never stored; ≤ 200 shapes per request, statements over
+  `SHAPE_SQL_KEEP` = 4000 chars fingerprinted when first seen so the kept SQL stays bounded); `Stats#frequent_sql` (shapes run more than once) fingerprints the top five from their *whole* first statement only
   when a slow row is written (a cut-off statement could leak half a literal) — column
   `frequent_sql` (migration 004, guarded by `frequent_sql_available?`) and `most_frequent=` on the
   warn line: that is what exposes an N+1, which never shows among the slowest. Jobs via

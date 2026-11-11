@@ -56,9 +56,16 @@ module RedmineExpertMetrics
     # Literals masked in a shape key: the ones fingerprint replaces (single-
     # quoted and PostgreSQL dollar-quoted strings, 0x hex, decimal and scientific
     # numbers) as one alternation, so the key costs one pass. Double-quoted
-    # strings only where they are strings (double_quoted_strings?).
-    SHAPE_LITERALS = /'(?:[^'\\]|\\.|'')*'|\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?\$\1\$|\b0x[0-9A-Fa-f]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/m
-    SHAPE_LITERALS_DOUBLE_QUOTED = /'(?:[^'\\]|\\.|'')*'|"(?:[^"\\]|\\.|"")*"|\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?\$\1\$|\b0x[0-9A-Fa-f]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/m
+    # strings only where they are strings (double_quoted_strings?). A string the
+    # prefix cuts off (no closing quote before its end, \z) is masked to the
+    # end, so a long value straddling the cut does not split its statements.
+    SHAPE_LITERALS = /'(?:[^'\\]|\\.|'')*(?:'|\z)|\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?(?:\$\1\$|\z)|\b0x[0-9A-Fa-f]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/m
+    SHAPE_LITERALS_DOUBLE_QUOTED = /'(?:[^'\\]|\\.|'')*(?:'|\z)|"(?:[^"\\]|\\.|"")*(?:"|\z)|\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?(?:\$\1\$|\z)|\b0x[0-9A-Fa-f]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/m
+    # A shape keeps its first statement as it came (fingerprinted only if it
+    # makes the stored top five) up to this length; longer ones - big INSERTs,
+    # long IN lists - are fingerprinted when first seen, so what a request holds
+    # stays bounded at MAX_SQL_SHAPES statements of this size.
+    SHAPE_SQL_KEEP = 4000
     # Writes of slow-request rows per process and minute. A slow database makes
     # every request slow; recording each one would add load where there is
     # already too much.
@@ -118,7 +125,7 @@ module RedmineExpertMetrics
         top = repeated.sort_by { |entry| [-(entry[:count] + entry[:cached]), -entry[:ms]] }
         top.first(TOP_FREQUENT_SQL).map do |entry|
           { :count => entry[:count], :cached => entry[:cached], :ms => entry[:ms].round(1),
-            :name => entry[:name], :sql => Performance.fingerprint(entry[:sql]) }
+            :name => entry[:name], :sql => entry[:fingerprint] || Performance.fingerprint(entry[:sql]) }
         end
       end
 
@@ -142,16 +149,23 @@ module RedmineExpertMetrics
       private
 
       # Keeps the first statement of each shape as it came (a reference, not a
-      # copy) and fingerprints it in frequent_sql: fingerprinting a cut-off
+      # copy) for frequent_sql to fingerprint whole: fingerprinting a cut-off
       # statement could leave half a string literal, and a value with it, in the
-      # stored text.
+      # stored text. Statements over SHAPE_SQL_KEEP are fingerprinted right away
+      # instead, which is safe (whole statement) and bounds what is kept.
       def count_shape(name, sql, ms, cached)
         label = Performance.statement_label(name)
         key = Performance.shape_key(label, sql)
         entry = @shapes[key]
         if entry.nil?
           return if @shapes.size >= MAX_SQL_SHAPES
-          entry = @shapes[key] = { :name => label, :sql => sql, :count => 0, :cached => 0, :ms => 0.0 }
+          entry = @shapes[key] = { :name => label, :count => 0, :cached => 0, :ms => 0.0 }
+          text = sql.to_s
+          if text.length > SHAPE_SQL_KEEP
+            entry[:fingerprint] = Performance.fingerprint(text)
+          else
+            entry[:sql] = text
+          end
         end
         if cached
           entry[:cached] += 1

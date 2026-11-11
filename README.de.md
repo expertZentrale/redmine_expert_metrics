@@ -181,7 +181,8 @@ Prozess mit dessen nächster Anfrage.
   anführen (zum Beispiel `919× Checklist Load`). Die `warn`-Zeile nennt die häufigste als
   `most_frequent=919x Checklist Load`, sodass schon das Log darauf zeigt, auch wenn die Zeile nicht
   geschrieben wurde. Das Zählen kostet jede Anfrage einen kurzen Schlüssel pro Anweisung; die Werte
-  werden nur für die fünf gespeicherten Formen entfernt.
+  werden nur für die fünf gespeicherten Formen entfernt, bei Anweisungen über 4.000 Zeichen sofort,
+  sodass eine Anfrage ihre großen INSERTs oder IN-Listen nicht festhält.
 - **Server-Timing**: Administratoren erhalten einen `Server-Timing`-Response-Header (`app`, `db`
   mit Anzahl der Anweisungen, `view`, `hooks`, `gc`), den die Entwicklerwerkzeuge des Browsers
   unter *Netzwerk → Timing* zeigen. Praktisch, um eine einzelne Seite in Produktion ohne Zugriff

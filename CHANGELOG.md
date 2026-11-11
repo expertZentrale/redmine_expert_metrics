@@ -19,7 +19,9 @@
   example `most_frequent=919x Checklist Load`, so the log names it even when the row was not
   written (rows are rate limited, the line is not). Each request pays one short key per statement
   for the counting; values are removed (as for the slowest statements) only for the five shapes
-  that are stored, and from the whole statement, never from a cut-off part.
+  that are stored, and from the whole statement, never from a cut-off part. Statements over 4,000
+  characters are reduced that way when first seen, so a request never holds on to its large
+  INSERTs or IN lists.
 
 ### Changed
 
