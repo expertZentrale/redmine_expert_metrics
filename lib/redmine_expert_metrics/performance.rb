@@ -95,6 +95,7 @@ module RedmineExpertMetrics
         @view_ms = 0.0
         @top_sql = []
         @shapes = {}
+        @shapes_by_text = {}
         @hooks_ms = 0.0
         @hooks = {}
         @hook_depth = 0
@@ -153,13 +154,19 @@ module RedmineExpertMetrics
       # statement could leave half a string literal, and a value with it, in the
       # stored text. Statements over SHAPE_SQL_KEEP are fingerprinted right away
       # instead, which is safe (whole statement) and bounds what is kept.
+      #
+      # Rails before 5.1 names every query-cache hit "CACHE" (later versions keep
+      # the statement's name and set :cached); such a hit is booked on the shape
+      # with the same masked text, so it counts with the statement it repeats.
       def count_shape(name, sql, ms, cached)
         label = Performance.statement_label(name)
         key = Performance.shape_key(label, sql)
         entry = @shapes[key]
+        entry ||= @shapes_by_text[key.last] if cached && label == 'CACHE'
         if entry.nil?
           return if @shapes.size >= MAX_SQL_SHAPES
           entry = @shapes[key] = { :name => label, :count => 0, :cached => 0, :ms => 0.0 }
+          @shapes_by_text[key.last] ||= entry
           text = sql.to_s
           if text.length > SHAPE_SQL_KEEP
             entry[:fingerprint] = Performance.fingerprint(text)

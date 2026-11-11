@@ -212,6 +212,20 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     assert_equal 'SELECT * FROM issues WHERE subject = ? AND id IN (?...)', top[:sql]
   end
 
+  # Rails before 5.1 names query-cache hits "CACHE"; they still count with the
+  # statement they repeat, so a statement run once from each is "repeated".
+  def test_cache_hits_named_cache_count_with_their_statement
+    stats = Performance::Stats.new
+    stats.add_sql('Issue Load', 'SELECT * FROM issues WHERE id = 7', 1.0, false)
+    stats.add_sql('CACHE', 'SELECT * FROM issues WHERE id = 7', 0.0, true)
+
+    top = stats.frequent_sql.first
+    assert_equal 'Issue Load', top[:name]
+    assert_equal 1, top[:count]
+    assert_equal 1, top[:cached]
+    assert_equal 1, stats.instance_variable_get(:@shapes).size
+  end
+
   # Rails 6.1 instruments some statements without a name.
   def test_unnamed_statements_are_labelled_sql
     stats = Performance::Stats.new
