@@ -101,6 +101,13 @@ class RedmineExpertMetricsPerformanceIntegrationTest < Redmine::IntegrationTest
     assert_operator row.sql_count, :>, 0
     assert row.top_sql_list.any?
     assert row.top_sql_list.none? { |entry| entry['sql'].include?('secret term') }
+    frequent = row.frequent_sql_list
+    assert frequent.any?
+    assert frequent.all? { |entry| entry['count'] + entry['cached'] > 0 && entry['name'].present? }
+    assert frequent.none? { |entry| entry['sql'].include?('secret term') }
+    # Most executions first.
+    runs = frequent.map { |entry| entry['count'] + entry['cached'] }
+    assert_equal runs.sort.reverse, runs
     # Only the slowest listeners are kept, so check the shape, not ours.
     assert row.hook_list.any?
     assert row.hook_list.all? { |entry| entry['listener'].present? && entry['hook'].present? && entry['calls'] > 0 }

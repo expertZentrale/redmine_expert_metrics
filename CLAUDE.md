@@ -2,8 +2,8 @@
 
 Small Redmine plugin: "who is active right now", "who uses the REST API" and "which requests
 are slow" as admin pages + JSON, aggregate numbers, mail/API counters and per-process
-performance series as Prometheus metrics on `/metrics`. Three migrations (counter table, API
-usage table, slow-request table), no permissions, three settings: `api_usage_enabled` (off by
+performance series as Prometheus metrics on `/metrics`. Four migrations (counter table, API
+usage table, slow-request table, its `frequent_sql` column), no permissions, three settings: `api_usage_enabled` (off by
 default) — while off, `ApiUsagePatch` returns before any query and `Collector.collect` leaves
 `api_*` nil, so `/metrics` omits those series; `performance_metrics_enabled` (off by default) and
 `slow_request_threshold_ms` (default 2000, nil on old installs → `Performance.threshold_ms`
@@ -55,7 +55,13 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   tests `travel_to` a frozen time since 6.1, under which `Time.now`-based durations read 0); `finish_request` books it into `Performance::REGISTRY` under one lock,
   sets `Server-Timing` for admins and writes an `ExpertMetricsSlowRequest` over the threshold
   (≤ 30/min/process, SQL fingerprinted — literals → `?`; `"…"` is a string only on MySQL/MariaDB,
-  `Performance.double_quoted_strings?`). Jobs via `perform.active_job`.
+  `Performance.double_quoted_strings?`). `Stats#add_sql` also counts statements per shape
+  (`Performance.shape_key`: name + literal-masked first 300 chars, never stored, ≤ 200 shapes per
+  request); `Stats#frequent_sql` (shapes run more than once) fingerprints the top five from their *whole* first statement only
+  when a slow row is written (a cut-off statement could leak half a literal) — column
+  `frequent_sql` (migration 004, guarded by `frequent_sql_available?`) and `most_frequent=` on the
+  warn line: that is what exposes an N+1, which never shows among the slowest. Jobs via
+  `perform.active_job`.
   `Performance.process_stats` (read at scrape) also times one `SELECT 1` past the query cache
   (`db_roundtrip_seconds`, gauge `redmine_db_roundtrip_seconds`): a pod whose every statement is
   slow is waiting on its connection, which the request series cannot tell from a slow query.

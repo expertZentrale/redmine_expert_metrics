@@ -174,6 +174,7 @@ class ExpertMetricsController < ApplicationController
               'sql_count'   => row.sql_count,
               'sql_cached'  => row.sql_cached,
               'top_sql'     => row.top_sql_list,
+              'frequent_sql' => row.frequent_sql_list,
               'hooks'       => row.hook_list,
               'user'        => row.user && row.user.login,
               'request_id'  => row.request_id

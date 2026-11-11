@@ -115,6 +115,74 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     assert_equal 'SELECT * FROM issues WHERE id = ?', stats.top_sql.first[:sql]
   end
 
+  # An N+1: many fast statements of one shape, none of them among the slowest.
+  def test_frequent_sql_groups_statements_by_shape
+    stats = Performance::Stats.new
+    10.times do |i|
+      stats.add_sql('Checklist Load', "SELECT `checklists`.* FROM `checklists` WHERE `checklists`.`issue_id` = #{i + 1} " \
+                                      'ORDER BY checklists.position', 0.5, false)
+    end
+    3.times do
+      stats.add_sql('Checklist Load', 'SELECT `checklists`.* FROM `checklists` WHERE `checklists`.`issue_id` = 1 ' \
+                                      'ORDER BY checklists.position', 0.0, true)
+    end
+    stats.add_sql('Issue Load', 'SELECT * FROM issues WHERE id = 7', 20.0, false)
+    stats.add_sql('User Load', "SELECT * FROM users WHERE login = 'jsmith'", 1.0, false)
+    stats.add_sql('User Load', "SELECT * FROM users WHERE login = 'admin'", 1.0, false)
+
+    frequent = stats.frequent_sql
+    top = frequent.first
+    assert_equal 'Checklist Load', top[:name]
+    assert_equal 10, top[:count]
+    assert_equal 3, top[:cached]
+    assert_in_delta 5.0, top[:ms]
+    assert_equal 'SELECT `checklists`.* FROM `checklists` WHERE `checklists`.`issue_id` = ? ORDER BY checklists.position', top[:sql]
+    users = frequent.detect { |entry| entry[:name] == 'User Load' }
+    assert_equal 2, users[:count]
+    assert_equal 'SELECT * FROM users WHERE login = ?', users[:sql]
+    # Ran once: among the slowest, not among the frequent.
+    assert_nil frequent.detect { |entry| entry[:name] == 'Issue Load' }
+    # The slowest-statement list is unchanged by the grouping.
+    assert_equal 'Issue Load', stats.top_sql.first[:name]
+    assert_equal 13, stats.sql_count
+    assert_equal 3, stats.sql_cached
+  end
+
+  # The shape key looks at the start of a statement only; the stored text must
+  # still be the fingerprint of the whole statement, never a cut-off literal.
+  def test_frequent_sql_drops_values_past_the_shape_key
+    # Longer than the shape key, shorter than the stored text (SQL_MAX_LENGTH).
+    columns = (1..15).map { |i| "`issues`.`c#{i}` AS t0_r#{i}" }.join(', ')
+    assert_operator columns.length, :>, Performance::SHAPE_KEY_LENGTH
+    assert_operator columns.length + 60, :<, Performance::SQL_MAX_LENGTH
+    stats = Performance::Stats.new
+    stats.add_sql('Issue Eager Load', "SELECT #{columns} FROM issues WHERE subject = 'secret one'", 1.0, false)
+    stats.add_sql('Issue Eager Load', "SELECT #{columns} FROM issues WHERE subject = 'secret two'", 1.0, false)
+
+    top = stats.frequent_sql.first
+    assert_equal 2, top[:count]
+    assert_not_includes top[:sql], 'secret'
+    assert_includes top[:sql], 'subject = ?'
+  end
+
+  def test_shapes_past_the_cap_are_counted_but_not_grouped
+    stats = Performance::Stats.new
+    (Performance::MAX_SQL_SHAPES + 5).times do |i|
+      2.times { stats.add_sql("Load #{i}", "SELECT * FROM t_#{i}", 0.1, false) }
+    end
+
+    assert_equal 2 * (Performance::MAX_SQL_SHAPES + 5), stats.sql_count
+    assert_equal Performance::MAX_SQL_SHAPES, stats.instance_variable_get(:@shapes).size
+    assert_equal Performance::TOP_FREQUENT_SQL, stats.frequent_sql.size
+  end
+
+  def test_most_frequent_note_names_a_repeated_shape_only
+    assert_equal ' most_frequent=919x Checklist Load',
+                 Performance.most_frequent_note([{ :count => 900, :cached => 19, :name => 'Checklist Load' }])
+    assert_equal '', Performance.most_frequent_note([{ :count => 1, :cached => 0, :name => 'Issue Load' }])
+    assert_equal '', Performance.most_frequent_note([])
+  end
+
   def test_fingerprint_drops_literal_values
     sql = "SELECT `contacts`.* FROM `contacts` WHERE (email LIKE '%jane.doe@example.com%') " \
           "AND `contacts`.`id` IN (12, 13, 14) AND x = 'it''s' AND y = 3.5"

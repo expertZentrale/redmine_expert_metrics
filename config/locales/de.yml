@@ -65,6 +65,8 @@ de:
   label_expert_metrics_slow_latest: "Neueste langsame Anfragen (höchstens %{count})"
   label_expert_metrics_details: "Details"
   label_expert_metrics_slowest_sql: "Langsamste SQL-Anweisungen"
+  label_expert_metrics_frequent_sql: "Häufigste SQL-Anweisungen"
+  label_expert_metrics_sql_runs: "%{count}× aus der Datenbank, %{cached}× aus dem Query-Cache, %{ms} ms gesamt"
   label_expert_metrics_hook_times: "Langsamste Hook-Listener"
   label_expert_metrics_sql_counts: "%{count} SQL-Anweisungen, %{cached} aus dem Query-Cache"
   field_expert_metrics_action: "Controller#Aktion"

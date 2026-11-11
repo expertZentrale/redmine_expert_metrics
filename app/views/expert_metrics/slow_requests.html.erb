@@ -96,10 +96,20 @@
             <td class="path">
               <code><%= row.http_method %> <%= truncate(row.path, :length => 60) %></code>
               <% sql = row.top_sql_list %>
+              <% frequent = row.frequent_sql_list %>
               <% hooks = row.hook_list %>
-              <% if sql.any? || hooks.any? %>
+              <% if sql.any? || frequent.any? || hooks.any? %>
                 <details>
                   <summary><%= l(:label_expert_metrics_details) %></summary>
+                  <% if frequent.any? %>
+                    <p><strong><%= l(:label_expert_metrics_frequent_sql) %></strong></p>
+                    <ul class="expert-metrics-frequent-sql">
+                      <% frequent.each do |entry| %>
+                        <li><%= l(:label_expert_metrics_sql_runs, :count => entry['count'], :cached => entry['cached'], :ms => entry['ms']) %>
+                          <em><%= entry['name'] %></em><br><code><%= entry['sql'] %></code></li>
+                      <% end %>
+                    </ul>
+                  <% end %>
                   <% if sql.any? %>
                     <p><strong><%= l(:label_expert_metrics_slowest_sql) %></strong></p>
                     <ul>

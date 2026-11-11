@@ -4,13 +4,36 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
-## [Unreleased]
+## [1.7.0] - 2026-11-11
+
+### Hinzugefügt
+
+- **Langsame Anfragen nennen ihre häufigsten SQL-Anweisungen.** Neben den fünf langsamsten
+  Anweisungen behält jede langsame Anfrage jetzt die fünf Formen von Anweisungen, die sie am
+  häufigsten ausgeführt hat (gleiche Anweisung, andere Werte; Formen, die nur einmal liefen, fehlen),
+  jeweils damit, wie oft sie aus der Datenbank und aus dem Query-Cache kam, und mit ihrer
+  Gesamtzeit. Eine N+1-Abfrage — eine Anweisung pro Zeile einer Ticketliste oder eines
+  CSV-Exports — sind tausende schnelle Anweisungen, keine davon unter den langsamsten; die
+  langsamsten allein haben sie daher nie gezeigt: Ein CSV-Export mit 48.000 Anweisungen listete nur
+  die Hauptabfrage und vier einzelne Abfragen. Zu sehen unter *Langsame Anfragen* bei *Details* und
+  als `frequent_sql` in `/admin/slow_requests.json`. Die `warn`-Zeile endet mit der häufigsten
+  Form, zum Beispiel `most_frequent=919x Checklist Load`, sodass schon das Log sie nennt, auch wenn
+  die Zeile nicht geschrieben wurde (Zeilen sind begrenzt, die Log-Zeile nicht). Jede Anfrage zahlt
+  für das Zählen einen kurzen Schlüssel pro Anweisung; die Werte werden (wie bei den langsamsten
+  Anweisungen) nur für die fünf gespeicherten Formen entfernt, und zwar aus der ganzen Anweisung,
+  nie aus einem abgeschnittenen Teil.
 
 ### Geändert
 
 - **Die Tests laufen auch auf MySQL und PostgreSQL.** Die CI führt die Suite für jede unterstützte
   Redmine-Version auf MariaDB aus und für die älteste und die neueste (5.1 und 7.0) zusätzlich auf
   MySQL 8.4 und PostgreSQL 17.
+
+### Migration
+
+- Eine Migration (`004`, Spalte `frequent_sql` in `expert_metrics_slow_requests`).
+  `rake redmine:plugins:migrate` vor dem Neustart ausführen; bis ein Prozess nach der Migration neu
+  startet, speichert er langsame Anfragen ohne die neue Spalte. Ältere Zeilen haben keine Liste.
 
 ## [1.6.1] - 2026-11-02
 
