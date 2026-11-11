@@ -140,11 +140,12 @@ module RedmineExpertMetrics
       # statement could leave half a string literal, and a value with it, in the
       # stored text.
       def count_shape(name, sql, ms, cached)
-        key = Performance.shape_key(name, sql)
+        label = Performance.statement_label(name)
+        key = Performance.shape_key(label, sql)
         entry = @shapes[key]
         if entry.nil?
           return if @shapes.size >= MAX_SQL_SHAPES
-          entry = @shapes[key] = { :name => name.to_s, :sql => sql, :count => 0, :cached => 0, :ms => 0.0 }
+          entry = @shapes[key] = { :name => label, :sql => sql, :count => 0, :cached => 0, :ms => 0.0 }
         end
         if cached
           entry[:cached] += 1
@@ -435,6 +436,14 @@ module RedmineExpertMetrics
     def shape_key(name, sql)
       head = sql.to_s[0, SHAPE_KEY_LENGTH]
       [name.to_s, head.gsub(/'(?:[^'\\]|\\.|'')*'|\b\d+\b/, '?')]
+    end
+
+    # The statement's name as Rails' log shows it: statements run without one
+    # (nil on Rails 6.1, e.g. plain execute/select_all) read "SQL", so the page
+    # and the warn line never show an empty name.
+    def statement_label(name)
+      label = name.to_s
+      label.empty? ? 'SQL' : label
     end
 
     # MySQL/MariaDB read "..." as a string unless ANSI_QUOTES is set, which

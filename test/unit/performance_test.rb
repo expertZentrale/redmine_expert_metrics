@@ -176,6 +176,18 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     assert_equal Performance::TOP_FREQUENT_SQL, stats.frequent_sql.size
   end
 
+  # Rails 6.1 instruments some statements without a name.
+  def test_unnamed_statements_are_labelled_sql
+    stats = Performance::Stats.new
+    2.times { |i| stats.add_sql(nil, "SELECT COUNT(*) FROM t WHERE id = #{i}", 0.1, false) }
+    stats.add_sql('', 'SELECT COUNT(*) FROM t WHERE id = 7', 0.1, false)
+
+    top = stats.frequent_sql.first
+    assert_equal 'SQL', top[:name]
+    assert_equal 3, top[:count]
+    assert_equal ' most_frequent=3x SQL', Performance.most_frequent_note(stats.frequent_sql)
+  end
+
   def test_most_frequent_note_names_a_repeated_shape_only
     assert_equal ' most_frequent=919x Checklist Load',
                  Performance.most_frequent_note([{ :count => 900, :cached => 19, :name => 'Checklist Load' }])
