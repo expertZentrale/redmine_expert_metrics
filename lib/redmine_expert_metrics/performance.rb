@@ -53,6 +53,12 @@ module RedmineExpertMetrics
     MAX_SQL_SHAPES = 200
     # How much of a statement groups it into a shape (see Performance.shape_key).
     SHAPE_KEY_LENGTH = 300
+    # Literals masked in a shape key: the ones fingerprint replaces (single-
+    # quoted and PostgreSQL dollar-quoted strings, 0x hex, decimal and scientific
+    # numbers) as one alternation, so the key costs one pass. Double-quoted
+    # strings only where they are strings (double_quoted_strings?).
+    SHAPE_LITERALS = /'(?:[^'\\]|\\.|'')*'|\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?\$\1\$|\b0x[0-9A-Fa-f]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/m
+    SHAPE_LITERALS_DOUBLE_QUOTED = /'(?:[^'\\]|\\.|'')*'|"(?:[^"\\]|\\.|"")*"|\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?\$\1\$|\b0x[0-9A-Fa-f]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/m
     # Writes of slow-request rows per process and minute. A slow database makes
     # every request slow; recording each one would add load where there is
     # already too much.
@@ -427,15 +433,16 @@ module RedmineExpertMetrics
     end
 
     # Groups statements into shapes while a request runs: the statement's name
-    # and its first SHAPE_KEY_LENGTH characters with quoted strings and numbers
-    # masked. One pass over a short prefix, since it runs for every statement;
-    # the key is never stored or shown (Stats#frequent_sql fingerprints the
-    # whole statement for that). The statements of an N+1 differ only in their
-    # literals and share a key; eager loads whose column list runs past the
-    # prefix group under their name.
+    # and its first SHAPE_KEY_LENGTH characters with the literals fingerprint
+    # replaces masked (SHAPE_LITERALS). One pass over a short prefix, since it
+    # runs for every statement; the key is never stored or shown
+    # (Stats#frequent_sql fingerprints the whole statement for that). The
+    # statements of an N+1 differ only in their literals and share a key; eager
+    # loads whose column list runs past the prefix group under their name.
     def shape_key(name, sql)
       head = sql.to_s[0, SHAPE_KEY_LENGTH]
-      [name.to_s, head.gsub(/'(?:[^'\\]|\\.|'')*'|\b\d+\b/, '?')]
+      literals = double_quoted_strings? ? SHAPE_LITERALS_DOUBLE_QUOTED : SHAPE_LITERALS
+      [name.to_s, head.gsub(literals, '?')]
     end
 
     # The statement's name as Rails' log shows it: statements run without one

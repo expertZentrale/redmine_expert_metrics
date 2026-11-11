@@ -23,7 +23,7 @@ git clone https://github.com/expertZentrale/redmine_expert_metrics.git
 
 h3. 2. Run the migrations
 
-Three small tables: a counter table (notification mails, API requests), the daily API usage table and the slow-request table.
+Three small tables: a counter table (notification mails, API requests), the daily API usage table and the slow-request table (which since 1.7.0 also keeps each request's most frequent SQL statements; migration 004 adds that column, so run this step again when upgrading).
 
 <pre>
 cd /path/to/redmine

@@ -176,6 +176,18 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     assert_equal Performance::TOP_FREQUENT_SQL, stats.frequent_sql.size
   end
 
+  # The key masks every literal the fingerprint does, or an N+1 over hex or
+  # scientific values would split into one shape per value.
+  def test_shape_key_masks_the_literals_the_fingerprint_masks
+    key = lambda { |sql| Performance.shape_key('Item Load', sql) }
+    assert_equal key.call("SELECT * FROM t WHERE a = 1e10 AND b = 0xDEADBEEF AND c = 2.5E-3 AND d = 'x' AND e = $$s$$"),
+                 key.call("SELECT * FROM t WHERE a = 7e3 AND b = 0x1F AND c = 9.75 AND d = 'yy' AND e = $$t$$")
+    assert_not_equal key.call('SELECT * FROM t WHERE a = 1'), key.call('SELECT * FROM u WHERE a = 1')
+    if Performance.double_quoted_strings?
+      assert_equal key.call('SELECT * FROM users WHERE login = "jane"'), key.call('SELECT * FROM users WHERE login = "john"')
+    end
+  end
+
   # Rails 6.1 instruments some statements without a name.
   def test_unnamed_statements_are_labelled_sql
     stats = Performance::Stats.new
