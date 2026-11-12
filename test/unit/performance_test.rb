@@ -226,6 +226,20 @@ class RedmineExpertMetricsPerformanceTest < ActiveSupport::TestCase
     assert_equal 1, stats.instance_variable_get(:@shapes).size
   end
 
+  # Two names, one masked text: a CACHE hit cannot tell which it repeats.
+  def test_cache_hits_with_an_ambiguous_text_stay_their_own_shape
+    stats = Performance::Stats.new
+    stats.add_sql('Issue Load', 'SELECT * FROM issues WHERE id = 7', 1.0, false)
+    stats.add_sql('Issue Exists?', 'SELECT * FROM issues WHERE id = 8', 1.0, false)
+    2.times { stats.add_sql('CACHE', 'SELECT * FROM issues WHERE id = 8', 0.0, true) }
+
+    shapes = stats.instance_variable_get(:@shapes).values
+    assert_equal [0, 0], shapes.reject { |s| s[:name] == 'CACHE' }.map { |s| s[:cached] }
+    cache = stats.frequent_sql.first
+    assert_equal 'CACHE', cache[:name]
+    assert_equal [0, 2], [cache[:count], cache[:cached]]
+  end
+
   # Rails 6.1 instruments some statements without a name.
   def test_unnamed_statements_are_labelled_sql
     stats = Performance::Stats.new

@@ -158,6 +158,9 @@ module RedmineExpertMetrics
       # Rails before 5.1 names every query-cache hit "CACHE" (later versions keep
       # the statement's name and set :cached); such a hit is booked on the shape
       # with the same masked text, so it counts with the statement it repeats.
+      # The statement it repeats has always run before it, so that text names
+      # one shape - unless statements of different names share it; then the
+      # hit cannot tell which it repeats and stays a CACHE shape of its own.
       def count_shape(name, sql, ms, cached)
         label = Performance.statement_label(name)
         key = Performance.shape_key(label, sql)
@@ -166,7 +169,7 @@ module RedmineExpertMetrics
         if entry.nil?
           return if @shapes.size >= MAX_SQL_SHAPES
           entry = @shapes[key] = { :name => label, :count => 0, :cached => 0, :ms => 0.0 }
-          @shapes_by_text[key.last] ||= entry
+          remember_text(key.last, entry) unless label == 'CACHE'
           text = sql.to_s
           if text.length > SHAPE_SQL_KEEP
             entry[:fingerprint] = Performance.fingerprint(text)
@@ -180,6 +183,11 @@ module RedmineExpertMetrics
           entry[:count] += 1
           entry[:ms] += ms
         end
+      end
+
+      # nil once a second shape has the same masked text (ambiguous for good).
+      def remember_text(text, entry)
+        @shapes_by_text[text] = @shapes_by_text.key?(text) ? nil : entry
       end
     end
 
