@@ -9,7 +9,8 @@
 #                             client; HTML and JSON, admins only.
 # * GET /admin/slow_requests - requests over the slow-request threshold with
 #                             their database/view/hook breakdown; HTML and
-#                             JSON, admins only.
+#                             JSON for admins, the JSON also with the fixed
+#                             token from the plugin settings.
 class ExpertMetricsController < ApplicationController
   layout 'admin'
   self.main_menu = false
@@ -22,8 +23,14 @@ class ExpertMetricsController < ApplicationController
   skip_before_action :check_if_login_required, :check_password_change, :check_twofa_activation,
                      :only => :prometheus, :raise => false
 
+  # A script with the slow-request token needs no account, so it must not be
+  # sent to the login page either. One condition that checks the action itself:
+  # :only next to :if would skip the filter when *either* holds.
+  skip_before_action :check_if_login_required, :if => :slow_requests_token?
+
   before_action :authorize_prometheus, :only => :prometheus
-  before_action :require_admin, :only => [:active_users, :api_usage, :slow_requests]
+  before_action :require_admin, :only => [:active_users, :api_usage]
+  before_action :authorize_slow_requests, :only => :slow_requests
   accept_api_auth :active_users, :api_usage, :slow_requests
 
   # Minutes the admin page looks back for the per-user list.
@@ -206,6 +213,27 @@ class ExpertMetricsController < ApplicationController
     response.headers['WWW-Authenticate'] = 'Bearer realm="Redmine metrics"'
     render :plain => "Unauthorized\n", :status => 401
     false
+  end
+
+  # Administrators, or the slow-request token (JSON only).
+  def authorize_slow_requests
+    require_admin unless slow_requests_token?
+  end
+
+  # True for /admin/slow_requests.json with the token from the plugin settings
+  # as `Authorization: Bearer <token>`. Only as a header: a query string ends up
+  # in proxy and access logs. Never for the HTML page, which renders the admin
+  # menu. Core's find_current_user also sees the Bearer header (OAuth on
+  # Redmine 6.1+), finds no such access token and leaves the user anonymous.
+  # Not memoized: functional tests reuse one controller for several requests.
+  def slow_requests_token?
+    # Same test as core's api_request?, so the request never starts a session.
+    return false unless action_name == 'slow_requests' && params[:format] == 'json'
+
+    expected = ExpertMetricsSlowRequest.access_token
+    presented = bearer_token
+    expected.present? && presented.present? &&
+      ActiveSupport::SecurityUtils.secure_compare(presented, expected)
   end
 
   # /metrics is not an API format, so core's find_current_user ignores the key;

@@ -4,6 +4,19 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [1.8.0] - 2026-11-12
+
+### Hinzugefügt
+
+- **Ein Skript kann die langsamen Anfragen mit einem festen Token lesen.** Neue Einstellung *Token
+  für langsame Anfragen* (standardmäßig leer): Mit einem Wert von mindestens 32 Zeichen antwortet
+  `GET /admin/slow_requests.json` mit dem Header `Authorization: Bearer <token>` ohne
+  Administratorkonto, auch bei aktiver *Authentifizierung erforderlich* und ausgeschalteter
+  REST-API. Bisher brauchte ein Skript dafür einen Admin-API-Key, der ganz Redmine öffnet. Der Token
+  öffnet nur dieses eine JSON (nicht die HTML-Seite, nicht die anderen Admin-Seiten, nicht die
+  REST-API), gilt nur als Header (ein Query-String landet in Proxy- und Zugriffslogs), und ein
+  kürzerer Wert wird ignoriert, mit Hinweis auf der Einstellungsseite.
+
 ## [1.7.0] - 2026-11-11
 
 ### Hinzugefügt

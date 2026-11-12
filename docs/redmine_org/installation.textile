@@ -46,6 +46,8 @@ There is no project module. Administrators find *expert Metrics* in the Administ
 
 *Performance metrics are off by default* as well (_Record performance metrics_, same page). While on, @/metrics@ also carries per-process request, hook, job and memory series — Prometheus has to scrape every pod for them, and dashboards add them up with @sum@ — and requests slower than _Slow request threshold_ (2000 ms) are listed under _Slow requests_.
 
+To let a script read @/admin/slow_requests.json@ without an admin account or admin API key, set _Slow requests token_ (same page) to a random value of at least 32 characters, for example from @openssl rand -hex 32@, and send it as @Authorization: Bearer <token>@. It opens this one JSON and nothing else, works with *Authentication required* on, and is accepted only as a header. The JSON names users and paths, so keep the token like a password.
+
 h3. 4. Protect /metrics (optional)
 
 @/metrics@ is open by default; it carries aggregate numbers only. To require a token, set it in @config/configuration.yml@ and restart:

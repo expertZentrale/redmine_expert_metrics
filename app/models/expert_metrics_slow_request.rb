@@ -10,7 +10,21 @@ class ExpertMetricsSlowRequest < ActiveRecord::Base
   RETENTION_DAYS = 14
   PURGE_CACHE_KEY = 'redmine_expert_metrics/slow_requests_purged'.freeze
 
+  # Shortest accepted access token. Shorter values (a placeholder such as
+  # "test") are ignored, so they never open the JSON.
+  TOKEN_MIN_LENGTH = 32
+
   belongs_to :user, :optional => true
+
+  # The fixed token (setting `slow_requests_token`) that opens
+  # /admin/slow_requests.json to scripts without an administrator account, or
+  # nil while it is empty, too short or missing (installs older than 1.8.0).
+  def self.access_token
+    token = Setting.plugin_redmine_expert_metrics['slow_requests_token'].to_s.strip
+    token.length >= TOKEN_MIN_LENGTH ? token : nil
+  rescue StandardError
+    nil
+  end
 
   # False until db/migrate/003 has run. Schema-cache lookup, no query per call.
   def self.available?

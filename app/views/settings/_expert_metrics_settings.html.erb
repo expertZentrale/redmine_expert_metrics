@@ -16,3 +16,12 @@
                        :min => 0, :step => 100, :size => 6 %> ms
   <em class="info"><%= l(:text_expert_metrics_slow_request_threshold, :days => ExpertMetricsSlowRequest::RETENTION_DAYS) %></em>
 </p>
+<p>
+  <label for="settings_slow_requests_token"><%= l(:label_expert_metrics_slow_requests_token) %></label>
+  <%= text_field_tag 'settings[slow_requests_token]', settings['slow_requests_token'], :size => 64,
+                     :autocomplete => 'off', :spellcheck => false %>
+  <% if settings['slow_requests_token'].to_s.strip.present? && ExpertMetricsSlowRequest.access_token.nil? %>
+    <em class="info"><strong class="expert-metrics-token-too-short"><%= l(:text_expert_metrics_slow_requests_token_too_short, :length => ExpertMetricsSlowRequest::TOKEN_MIN_LENGTH) %></strong></em>
+  <% end %>
+  <em class="info"><%= l(:text_expert_metrics_slow_requests_token, :length => ExpertMetricsSlowRequest::TOKEN_MIN_LENGTH) %></em>
+</p>

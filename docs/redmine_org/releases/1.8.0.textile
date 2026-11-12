@@ -1,0 +1,9 @@
+h3. redmine_expert_metrics 1.8.0 — 2026-11-12
+
+h4. Added
+
+* *A script can read the slow requests with a fixed token.* New setting _Slow requests token_ (empty by default). With a value of at least 32 characters, @GET /admin/slow_requests.json@ with the header @Authorization: Bearer <token>@ answers without an administrator account, also with *Authentication required* on and with the REST API off. Until now a script needed an admin API key, which opens all of Redmine. The token opens this one JSON and nothing else, and is accepted only as a header, never in the query string.
+
+h4. Upgrade notes
+
+No migrations. Replace the plugin directory and restart. The token stays off until you set it under _Administration → Plugins → Redmine expert Metrics → Configure_.

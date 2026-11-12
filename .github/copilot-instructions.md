@@ -8,11 +8,12 @@ different tools — **keep them in sync when either changes.**
 Small Redmine plugin: "who is active right now", "who uses the REST API" and "which requests
 are slow" as admin pages + JSON, aggregate numbers, mail/API counters and per-process
 performance series as Prometheus metrics on `/metrics`. Four migrations (counter table, API
-usage table, slow-request table, its `frequent_sql` column), no permissions, three settings: `api_usage_enabled` (off by
+usage table, slow-request table, its `frequent_sql` column), no permissions, four settings: `api_usage_enabled` (off by
 default) — while off, `ApiUsagePatch` returns before any query and `Collector.collect` leaves
-`api_*` nil, so `/metrics` omits those series; `performance_metrics_enabled` (off by default) and
+`api_*` nil, so `/metrics` omits those series; `performance_metrics_enabled` (off by default),
 `slow_request_threshold_ms` (default 2000, nil on old installs → `Performance.threshold_ms`
-falls back).
+falls back) and `slow_requests_token` (empty; `ExpertMetricsSlowRequest.access_token` returns
+nil below `TOKEN_MIN_LENGTH` = 32 chars).
 
 This directory lives inside the parent `redmine-expert` deployment repo (`../../`). It is
 **not** a Redmine checkout — Redmine only exists inside the Docker image. Run everything
@@ -27,8 +28,14 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
 - `lib/redmine_expert_metrics/exposition.rb` – Prometheus text rendering. Aggregates only,
   never user names.
 - `app/controllers/expert_metrics_controller.rb` – `prometheus` (`GET /metrics`, optional
-  `metrics_token` from `Redmine::Configuration`), `active_users` and `api_usage` (admin
-  HTML/JSON).
+  `metrics_token` from `Redmine::Configuration`), `active_users`, `api_usage` and
+  `slow_requests` (admin HTML/JSON). `slow_requests.json` also opens to the plugin setting
+  `slow_requests_token` as `Authorization: Bearer` (header only, JSON only, no account:
+  `slow_requests_token?` skips `check_if_login_required` and `authorize_slow_requests` skips
+  `require_admin`). Never combine `:only` with `:if` on `skip_before_action`: both become skip
+  conditions, so the filter is skipped when *either* holds — the method checks the action itself.
+  Core offers the Bearer header to OAuth first (Redmine 6.1+), finds no access token and leaves
+  the user anonymous.
 - `lib/redmine_expert_metrics/api_usage_patch.rb` + `app/models/expert_metrics_api_usage.rb` –
   prepended to `ApplicationController`, wraps core's `find_current_user` and records every
   request authenticated by API credentials (key / Basic key / Basic password / OAuth) as daily

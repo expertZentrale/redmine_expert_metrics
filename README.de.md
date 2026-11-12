@@ -43,7 +43,9 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
 - **Administration → expert Metrics → Langsame Anfragen** (`/admin/slow_requests`, auch `.json`):
   Anfragen über der eingestellten Schwelle mit der Zeit in Datenbank, Ansichten, Plugin-Hooks und
   Garbage Collection, den langsamsten und den häufigsten SQL-Anweisungen (ohne Werte) und den
-  langsamsten Hook-Listenern, dazu eine Zusammenfassung je Controller und Aktion. Siehe
+  langsamsten Hook-Listenern, dazu eine Zusammenfassung je Controller und Aktion. Ein Skript kann
+  das JSON statt mit einem Administratorkonto mit einem festen Token lesen, siehe
+  [Langsame Anfragen per Skript lesen](#langsame-anfragen-per-skript-lesen). Siehe
   [Performance-Metriken](#performance-metriken).
 - **`GET /metrics`**: Prometheus-Textformat, nur Summen (keine Namen).
 
@@ -256,7 +258,7 @@ werden daher mit `sum` zusammengefasst.
 | `/admin/active_users` (HTML) | Redmine-Administratoren |
 | `/admin/active_users.json` | Administratoren, auch per `X-Redmine-API-Key` / `?key=` (REST-API muss aktiviert sein) |
 | `/admin/api_usage` (HTML, `.json`) | Administratoren; das JSON auch per Admin-API-Key |
-| `/admin/slow_requests` (HTML, `.json`) | Administratoren; das JSON auch per Admin-API-Key |
+| `/admin/slow_requests` (HTML, `.json`) | Administratoren; das JSON auch per Admin-API-Key oder mit dem *Token für langsame Anfragen* (`Authorization: Bearer <token>`, siehe unten) |
 | `/metrics` | standardmäßig offen; ist `metrics_token` in `config/configuration.yml` gesetzt, muss er als `Authorization: Bearer <token>` oder `?token=<token>` mitgeschickt werden. Administratoren (Sitzung oder API-Key) kommen immer durch. |
 
 ```yaml
@@ -266,6 +268,24 @@ production:
 ```
 
 `/metrics` funktioniert auch, wenn in den Redmine-Einstellungen *Authentifizierung erforderlich* aktiv ist.
+
+### Langsame Anfragen per Skript lesen
+
+Ein Skript, das `/admin/slow_requests.json` liest, braucht weder ein Administratorkonto noch einen
+Admin-API-Key (der ihm ganz Redmine öffnen würde). Dazu in den Plugin-Einstellungen *Token für
+langsame Anfragen* auf einen Zufallswert mit mindestens 32 Zeichen setzen und ihn als Header
+mitschicken:
+
+```bash
+openssl rand -hex 32    # Ausgabe in "Token für langsame Anfragen" eintragen
+curl -H "Authorization: Bearer $TOKEN" "https://redmine.example.com/admin/slow_requests.json?days=7"
+```
+
+Der Token öffnet nur dieses eine JSON: nicht die HTML-Seite, nicht die anderen Admin-Seiten, nicht
+die REST-API. Er funktioniert bei aktiver *Authentifizierung erforderlich* und bei ausgeschalteter
+REST-API. Er gilt nur als Header, nie als `?token=`, das in Proxy- und Zugriffslogs landen würde.
+Das JSON nennt Benutzer und Pfade, den Token also wie ein Passwort behandeln; Feld leeren schaltet
+ihn aus. Ein Wert unter 32 Zeichen wird ignoriert, und die Einstellungsseite weist darauf hin.
 
 ## Sprachen
 
@@ -298,10 +318,12 @@ Alternativ das Release-Archiv von der
 [Releases-Seite](https://github.com/expertZentrale/redmine_expert_metrics/releases) herunterladen
 und nach `plugins/` entpacken.
 
-Keine Berechtigungen; drei Einstellungen: *API-Nutzung erfassen* (standardmäßig aus, siehe
-[API-Nutzung](#api-nutzung)), *Performance-Metriken erfassen* (standardmäßig aus) und *Schwelle für
-langsame Anfragen* (2000 ms, siehe [Performance-Metriken](#performance-metriken)). Alles andere ist
-aktiv, sobald das Plugin geladen wird.
+Keine Berechtigungen; vier Einstellungen: *API-Nutzung erfassen* (standardmäßig aus, siehe
+[API-Nutzung](#api-nutzung)), *Performance-Metriken erfassen* (standardmäßig aus), *Schwelle für
+langsame Anfragen* (2000 ms, siehe [Performance-Metriken](#performance-metriken)) und *Token für
+langsame Anfragen* (leer, siehe
+[Langsame Anfragen per Skript lesen](#langsame-anfragen-per-skript-lesen)). Alles andere ist aktiv,
+sobald das Plugin geladen wird.
 
 ## Grafana-Dashboard
 
