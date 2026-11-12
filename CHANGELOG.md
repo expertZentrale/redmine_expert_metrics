@@ -4,6 +4,19 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [1.8.0] - 2026-11-12
+
+### Added
+
+- **A script can read the slow requests with a fixed token.** New setting *Slow requests token*
+  (empty by default): with a value of at least 32 characters, `GET /admin/slow_requests.json` with
+  the header `Authorization: Bearer <token>` answers without an administrator account, also with
+  *Authentication required* on and with the REST API off. Until now a script needed an admin API
+  key, which opens all of Redmine. The token opens this one JSON and nothing else (not the HTML
+  page, not the other admin pages, not the REST API), is accepted only as a header (a query string
+  would end up in proxy and access logs), and a shorter value is ignored with a hint on the
+  settings page.
+
 ## [1.7.0] - 2026-11-11
 
 ### Added

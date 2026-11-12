@@ -24,17 +24,19 @@ Redmine::Plugin.register :redmine_expert_metrics do
   name 'Redmine expert Metrics'
   author 'Dennis Buehring'
   description 'Shows who is currently working in Redmine, who uses the REST API with which client and which requests are slow, and exposes that (plus a few basic totals and per-process request, hook, job and memory metrics) as Prometheus metrics. Works on Redmine 5.1 - 7.x.'
-  version '1.7.0'
+  version '1.8.0'
   url 'https://github.com/expertZentrale/redmine_expert_metrics'
   requires_redmine :version_or_higher => '5.0'
 
   # API usage recording and the performance metrics are opt-in: while off,
   # requests cost nothing extra and /metrics runs no extra queries. A key missing
   # from the stored hash (installs older than 1.3.0 / 1.4.0) reads as off, like
-  # the default; a missing threshold reads as Performance::DEFAULT_THRESHOLD_MS.
+  # the default; a missing threshold reads as Performance::DEFAULT_THRESHOLD_MS,
+  # a missing slow-request token (before 1.8.0) as none.
   settings :default => { 'api_usage_enabled' => '0',
                          'performance_metrics_enabled' => '0',
-                         'slow_request_threshold_ms' => RedmineExpertMetrics::Performance::DEFAULT_THRESHOLD_MS.to_s },
+                         'slow_request_threshold_ms' => RedmineExpertMetrics::Performance::DEFAULT_THRESHOLD_MS.to_s,
+                         'slow_requests_token' => '' },
            :partial => 'settings/expert_metrics_settings'
 
   # Entry in the administration menu (sidebar + admin overview). It carries the

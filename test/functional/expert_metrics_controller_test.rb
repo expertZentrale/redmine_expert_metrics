@@ -279,6 +279,85 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     assert_equal 'jsmith', request['user']
   end
 
+  SLOW_TOKEN = '0123456789abcdef0123456789abcdef-slow'.freeze
+
+  def test_slow_requests_json_with_token_needs_no_account
+    ExpertMetricsSlowRequest.delete_all
+    record_slow_request('issues', 'show', 3200, Time.now - 1.hour)
+    Setting.plugin_redmine_expert_metrics = { 'slow_requests_token' => SLOW_TOKEN }
+
+    # With "Authentication required" on, whether or not the REST API is: while
+    # it is on, core first offers the Bearer token to OAuth (Redmine 6.1+).
+    %w(0 1).each do |rest_api|
+      with_settings :login_required => '1', :rest_api_enabled => rest_api do
+        @request.headers['Authorization'] = "Bearer #{SLOW_TOKEN}"
+        get :slow_requests, :params => { :format => 'json', :days => '7' }
+      end
+      assert_response :success, "REST API #{rest_api}"
+      json = ActiveSupport::JSON.decode(response.body)
+      assert_equal 7, json['days']
+      assert_equal 3200, json['requests'].first['duration_ms']
+      assert_equal 'Checklist Load', json['requests'].first['frequent_sql'].first['name']
+      assert_nil session[:user_id]
+    end
+  end
+
+  def test_slow_requests_json_rejects_a_missing_or_wrong_token
+    Setting.plugin_redmine_expert_metrics = { 'slow_requests_token' => SLOW_TOKEN }
+    # Core answers 401 while the REST API is on, 403 while it is off.
+    with_settings :login_required => '1', :rest_api_enabled => '1' do
+      get :slow_requests, :params => { :format => 'json' }
+      assert_response 401
+
+      # Not as a query parameter: that would end up in proxy and access logs.
+      get :slow_requests, :params => { :format => 'json', :token => SLOW_TOKEN }
+      assert_response 401
+
+      @request.headers['Authorization'] = "Bearer #{SLOW_TOKEN}x"
+      get :slow_requests, :params => { :format => 'json' }
+      assert_response 401
+    end
+  end
+
+  def test_slow_requests_token_shorter_than_the_minimum_is_ignored
+    short = 'x' * (ExpertMetricsSlowRequest::TOKEN_MIN_LENGTH - 1)
+    Setting.plugin_redmine_expert_metrics = { 'slow_requests_token' => short }
+    assert_nil ExpertMetricsSlowRequest.access_token
+
+    @request.headers['Authorization'] = "Bearer #{short}"
+    with_settings :rest_api_enabled => '1' do
+      get :slow_requests, :params => { :format => 'json' }
+    end
+    assert_response 401
+  end
+
+  def test_slow_requests_token_opens_nothing_but_the_slow_requests_json
+    Setting.plugin_redmine_expert_metrics = { 'slow_requests_token' => SLOW_TOKEN }
+    @request.headers['Authorization'] = "Bearer #{SLOW_TOKEN}"
+
+    get :slow_requests
+    assert_response 302
+    assert_match %r{/login}, response.location
+
+    with_settings :rest_api_enabled => '1' do
+      get :api_usage, :params => { :format => 'json' }
+      assert_response 401
+
+      get :active_users, :params => { :format => 'json' }
+      assert_response 401
+    end
+  end
+
+  def test_plugin_settings_page_warns_about_a_token_that_is_too_short
+    Setting.plugin_redmine_expert_metrics = { 'slow_requests_token' => 'test' }
+    @request.session[:user_id] = 1
+    @controller = SettingsController.new
+    get :plugin, :params => { :id => 'redmine_expert_metrics' }
+    assert_response :success
+    assert_select 'input[name=?][value=?]', 'settings[slow_requests_token]', 'test'
+    assert_select 'strong.expert-metrics-token-too-short', 1
+  end
+
   def test_plugin_settings_page_renders_the_performance_settings
     @request.session[:user_id] = 1
     @controller = SettingsController.new
@@ -287,6 +366,9 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     assert_select '#settings_performance_metrics_enabled', 1
     assert_select 'input[name=?][value=?]', 'settings[slow_request_threshold_ms]',
                   RedmineExpertMetrics::Performance::DEFAULT_THRESHOLD_MS.to_s
+    # Stored settings from before 1.8.0 lack the token: empty field, no warning.
+    assert_select 'input[name=?]', 'settings[slow_requests_token]', 1
+    assert_select 'strong.expert-metrics-token-too-short', 0
   end
 
   private
