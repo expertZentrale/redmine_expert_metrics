@@ -4,13 +4,36 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
-## [Unreleased]
+## [1.7.0] - 2026-11-11
+
+### Added
+
+- **Slow requests name their most frequent SQL statements.** Next to the five slowest statements,
+  each slow request now keeps the five statement shapes it ran most often (the same statement with
+  different values; shapes that ran only once are left out), each with how often it came from the
+  database and from the query cache and its total time. An N+1 query — one statement per row of an
+  issue list or CSV export — is thousands of fast statements, none of them among the slowest, so
+  the slowest statements alone never showed it; a CSV export with 48,000 statements listed only
+  the main query and four single lookups. Shown on *Slow requests* under *Details* and as
+  `frequent_sql` in `/admin/slow_requests.json`. The `warn` line ends with the top shape, for
+  example `most_frequent=919x Checklist Load`, so the log names it even when the row was not
+  written (rows are rate limited, the line is not). Each request pays one short key per statement
+  for the counting; values are removed (as for the slowest statements) only for the five shapes
+  that are stored, and from the whole statement, never from a cut-off part. Statements over 4,000
+  characters are reduced that way when first seen, so a request never holds on to its large
+  INSERTs or IN lists.
 
 ### Changed
 
 - **The tests also run on MySQL and PostgreSQL.** CI runs the suite on MariaDB for every supported
   Redmine version and, for the oldest and the newest (5.1 and 7.0), on MySQL 8.4 and PostgreSQL 17
   as well.
+
+### Migration
+
+- One migration (`004`, a `frequent_sql` column on `expert_metrics_slow_requests`). Run
+  `rake redmine:plugins:migrate` before restarting; until a process restarts after the migration
+  it keeps storing slow requests without the new column. Rows stored before have no list.
 
 ## [1.6.1] - 2026-11-02
 

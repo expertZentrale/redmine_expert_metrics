@@ -19,7 +19,9 @@ require 'socket'
 # only runs jobs never passes through a request to attach it.
 # When the request ends, finish_request books it into the in-process Registry
 # with one lock, sends a Server-Timing header to admins and stores requests
-# over the threshold as ExpertMetricsSlowRequest rows.
+# over the threshold as ExpertMetricsSlowRequest rows, with the slowest
+# statements and the most frequent statement shapes (Stats#frequent_sql: an
+# N+1 is many fast statements of one shape, invisible among the slowest).
 #
 # Recording never breaks a request: every error is logged and swallowed.
 module RedmineExpertMetrics
@@ -42,6 +44,28 @@ module RedmineExpertMetrics
     TOP_SQL = 5
     TOP_HOOKS = 10
     SQL_MAX_LENGTH = 1000
+    # The most frequent statement shapes kept per slow request. An N+1 query is
+    # thousands of fast statements of one shape, none of them among the slowest,
+    # so the slowest alone never show it.
+    TOP_FREQUENT_SQL = 5
+    # Shapes counted per request; statements of further shapes are counted in
+    # sql_count but not grouped, which bounds memory for pathological requests.
+    MAX_SQL_SHAPES = 200
+    # How much of a statement groups it into a shape (see Performance.shape_key).
+    SHAPE_KEY_LENGTH = 300
+    # Literals masked in a shape key: the ones fingerprint replaces (single-
+    # quoted and PostgreSQL dollar-quoted strings, 0x hex, decimal and scientific
+    # numbers) as one alternation, so the key costs one pass. Double-quoted
+    # strings only where they are strings (double_quoted_strings?). A string the
+    # prefix cuts off (no closing quote before its end, \z) is masked to the
+    # end, so a long value straddling the cut does not split its statements.
+    SHAPE_LITERALS = /'(?:[^'\\]|\\.|'')*(?:'|\z)|\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?(?:\$\1\$|\z)|\b0x[0-9A-Fa-f]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/m
+    SHAPE_LITERALS_DOUBLE_QUOTED = /'(?:[^'\\]|\\.|'')*(?:'|\z)|"(?:[^"\\]|\\.|"")*(?:"|\z)|\$([A-Za-z_][A-Za-z_0-9]*|)\$.*?(?:\$\1\$|\z)|\b0x[0-9A-Fa-f]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/m
+    # A shape keeps its first statement as it came (fingerprinted only if it
+    # makes the stored top five) up to this length; longer ones - big INSERTs,
+    # long IN lists - are fingerprinted when first seen, so what a request holds
+    # stays bounded at MAX_SQL_SHAPES statements of this size.
+    SHAPE_SQL_KEEP = 4000
     # Writes of slow-request rows per process and minute. A slow database makes
     # every request slow; recording each one would add load where there is
     # already too much.
@@ -70,12 +94,15 @@ module RedmineExpertMetrics
         @sql_ms = 0.0
         @view_ms = 0.0
         @top_sql = []
+        @shapes = {}
+        @shapes_by_text = {}
         @hooks_ms = 0.0
         @hooks = {}
         @hook_depth = 0
       end
 
       def add_sql(name, sql, ms, cached)
+        count_shape(name, sql, ms, cached)
         if cached
           @sql_cached += 1
           return
@@ -86,6 +113,21 @@ module RedmineExpertMetrics
         @top_sql << { :ms => ms.round(1), :name => name.to_s, :sql => Performance.fingerprint(sql) }
         @top_sql.sort_by! { |entry| -entry[:ms] }
         @top_sql.pop if @top_sql.size > TOP_SQL
+      end
+
+      # The statement shapes run most often, most executions (database plus
+      # query cache) first: [{ :count, :cached, :ms, :name, :sql }]. Shapes that
+      # ran once are left out - a list of one-offs says nothing a slow
+      # statement would not. Fingerprints only these few, and only when asked (a
+      # slow request is being stored), so counting costs every request just the
+      # shape key.
+      def frequent_sql
+        repeated = @shapes.values.select { |entry| entry[:count] + entry[:cached] > 1 }
+        top = repeated.sort_by { |entry| [-(entry[:count] + entry[:cached]), -entry[:ms]] }
+        top.first(TOP_FREQUENT_SQL).map do |entry|
+          { :count => entry[:count], :cached => entry[:cached], :ms => entry[:ms].round(1),
+            :name => entry[:name], :sql => entry[:fingerprint] || Performance.fingerprint(entry[:sql]) }
+        end
       end
 
       # One render, without its SQL (RequestTimingPatch#cleanup_view_runtime).
@@ -103,6 +145,49 @@ module RedmineExpertMetrics
         entry[0] += ms
         entry[1] += 1
         @hooks_ms += ms if outermost
+      end
+
+      private
+
+      # Keeps the first statement of each shape as it came (a reference, not a
+      # copy) for frequent_sql to fingerprint whole: fingerprinting a cut-off
+      # statement could leave half a string literal, and a value with it, in the
+      # stored text. Statements over SHAPE_SQL_KEEP are fingerprinted right away
+      # instead, which is safe (whole statement) and bounds what is kept.
+      #
+      # Rails before 5.1 names every query-cache hit "CACHE" (later versions keep
+      # the statement's name and set :cached); such a hit is booked on the shape
+      # with the same masked text, so it counts with the statement it repeats.
+      # The statement it repeats has always run before it, so that text names
+      # one shape - unless statements of different names share it; then the
+      # hit cannot tell which it repeats and stays a CACHE shape of its own.
+      def count_shape(name, sql, ms, cached)
+        label = Performance.statement_label(name)
+        key = Performance.shape_key(label, sql)
+        entry = @shapes[key]
+        entry ||= @shapes_by_text[key.last] if cached && label == 'CACHE'
+        if entry.nil?
+          return if @shapes.size >= MAX_SQL_SHAPES
+          entry = @shapes[key] = { :name => label, :count => 0, :cached => 0, :ms => 0.0 }
+          remember_text(key.last, entry) unless label == 'CACHE'
+          text = sql.to_s
+          if text.length > SHAPE_SQL_KEEP
+            entry[:fingerprint] = Performance.fingerprint(text)
+          else
+            entry[:sql] = text
+          end
+        end
+        if cached
+          entry[:cached] += 1
+        else
+          entry[:count] += 1
+          entry[:ms] += ms
+        end
+      end
+
+      # nil once a second shape has the same masked text (ambiguous for good).
+      def remember_text(text, entry)
+        @shapes_by_text[text] = @shapes_by_text.key?(text) ? nil : entry
       end
     end
 
@@ -270,11 +355,13 @@ module RedmineExpertMetrics
     # limited, since those are what would add load to a struggling database.
     def record_slow(controller, labels, stats, duration_ms, gc_ms, status)
       request = controller.request
+      frequent = stats.frequent_sql
       Rails.logger.warn(
         "redmine_expert_metrics: slow request #{labels['controller']}##{labels['action']} " \
         "#{duration_ms.round}ms (db #{stats.sql_ms.round}ms/#{stats.sql_count} queries, " \
         "view #{stats.view_ms.round}ms, hooks #{stats.hooks_ms.round}ms) " \
-        "status=#{status} path=#{request.path} request_id=#{request.request_id}"
+        "status=#{status} path=#{request.path} request_id=#{request.request_id}" +
+        most_frequent_note(frequent)
       )
       return unless slow_write_allowed? && ExpertMetricsSlowRequest.available?
 
@@ -283,7 +370,14 @@ module RedmineExpertMetrics
       end
       hooks = hooks.sort_by { |entry| -entry['ms'] }.first(TOP_HOOKS)
 
-      ExpertMetricsSlowRequest.create!(
+      # frequent_sql arrives with db/migrate/004; until that has run, the row is
+      # stored without it rather than not at all.
+      extra = {}
+      if ExpertMetricsSlowRequest.frequent_sql_available?
+        extra[:frequent_sql] = frequent.map { |entry| entry.transform_keys(&:to_s) }.to_json
+      end
+
+      ExpertMetricsSlowRequest.create!(extra.merge(
         :created_at      => Time.now,
         :host            => hostname,
         :controller_name => labels['controller'][0, 100],
@@ -303,10 +397,21 @@ module RedmineExpertMetrics
         :hooks           => hooks.to_json,
         :user_id         => (User.current.logged? ? User.current.id : nil),
         :request_id      => request.request_id.to_s[0, 64]
-      )
+      ))
       ExpertMetricsSlowRequest.purge_if_due
     rescue StandardError => e
       log_error('slow request not stored', e)
+    end
+
+    # " most_frequent=919x Checklist Load" for the warn line, so the log alone
+    # names an N+1 (rows are rate limited, the line is not). Only when one shape
+    # ran more than once; the name is Rails' statement name, never SQL text.
+    def most_frequent_note(frequent)
+      top = frequent.first
+      return '' if top.nil?
+
+      runs = top[:count] + top[:cached]
+      runs > 1 ? " most_frequent=#{runs}x #{top[:name]}" : ''
     end
 
     def slow_write_allowed?
@@ -354,6 +459,27 @@ module RedmineExpertMetrics
       text = text.gsub(/\(\?(?:\s*,\s*\?)+\)/, '(?...)')
       text = text.gsub(/\s+/, ' ').strip
       text.length > SQL_MAX_LENGTH ? text[0, SQL_MAX_LENGTH] + '...' : text
+    end
+
+    # Groups statements into shapes while a request runs: the statement's name
+    # and its first SHAPE_KEY_LENGTH characters with the literals fingerprint
+    # replaces masked (SHAPE_LITERALS). One pass over a short prefix, since it
+    # runs for every statement; the key is never stored or shown
+    # (Stats#frequent_sql fingerprints the whole statement for that). The
+    # statements of an N+1 differ only in their literals and share a key; eager
+    # loads whose column list runs past the prefix group under their name.
+    def shape_key(name, sql)
+      head = sql.to_s[0, SHAPE_KEY_LENGTH]
+      literals = double_quoted_strings? ? SHAPE_LITERALS_DOUBLE_QUOTED : SHAPE_LITERALS
+      [name.to_s, head.gsub(literals, '?')]
+    end
+
+    # The statement's name as Rails' log shows it: statements run without one
+    # (nil on Rails 6.1, e.g. plain execute/select_all) read "SQL", so the page
+    # and the warn line never show an empty name.
+    def statement_label(name)
+      label = name.to_s
+      label.empty? ? 'SQL' : label
     end
 
     # MySQL/MariaDB read "..." as a string unless ANSI_QUOTES is set, which

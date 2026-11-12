@@ -42,8 +42,8 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
   nicht verwendet wurde. Siehe [API-Nutzung](#api-nutzung).
 - **Administration → expert Metrics → Langsame Anfragen** (`/admin/slow_requests`, auch `.json`):
   Anfragen über der eingestellten Schwelle mit der Zeit in Datenbank, Ansichten, Plugin-Hooks und
-  Garbage Collection, den langsamsten SQL-Anweisungen (ohne Werte) und den langsamsten
-  Hook-Listenern, dazu eine Zusammenfassung je Controller und Aktion. Siehe
+  Garbage Collection, den langsamsten und den häufigsten SQL-Anweisungen (ohne Werte) und den
+  langsamsten Hook-Listenern, dazu eine Zusammenfassung je Controller und Aktion. Siehe
   [Performance-Metriken](#performance-metriken).
 - **`GET /metrics`**: Prometheus-Textformat, nur Summen (keine Namen).
 
@@ -173,6 +173,16 @@ Prozess mit dessen nächster Anfrage.
   macht jede Anfrage langsam, und alle zu erfassen würde dort Last erzeugen, wo schon zu viel ist.
   Zeilen werden nach **14 Tagen** gelöscht. Eine Schwelle von `0` speichert jede Anfrage; nur für
   kurze Messungen verwenden.
+- **Häufigste Anweisungen**: Neben den fünf langsamsten Anweisungen behält jede langsame Anfrage die
+  fünf *Formen* von Anweisungen, die sie am häufigsten ausgeführt hat (gleiche Anweisung, andere
+  Werte; nur Formen, die mehr als einmal liefen), jeweils damit, wie oft sie aus der Datenbank und aus dem Query-Cache kam, und mit ihrer
+  Gesamtzeit. Eine N+1-Abfrage — eine Anweisung pro Zeile einer Ticketliste oder eines CSV-Exports —
+  sind tausende schnelle Anweisungen, die nie unter den langsamsten auftauchen, diese Liste aber
+  anführen (zum Beispiel `919× Checklist Load`). Die `warn`-Zeile nennt die häufigste als
+  `most_frequent=919x Checklist Load`, sodass schon das Log darauf zeigt, auch wenn die Zeile nicht
+  geschrieben wurde. Das Zählen kostet jede Anfrage einen kurzen Schlüssel pro Anweisung; die Werte
+  werden nur für die fünf gespeicherten Formen entfernt, bei Anweisungen über 4.000 Zeichen sofort,
+  sodass eine Anfrage ihre großen INSERTs oder IN-Listen nicht festhält.
 - **Server-Timing**: Administratoren erhalten einen `Server-Timing`-Response-Header (`app`, `db`
   mit Anzahl der Anweisungen, `view`, `hooks`, `gc`), den die Entwicklerwerkzeuge des Browsers
   unter *Netzwerk → Timing* zeigen. Praktisch, um eine einzelne Seite in Produktion ohne Zugriff

@@ -16,9 +16,11 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
   end
 
   def test_record_creates_then_adds_and_keeps_the_latest_details
-    first = Time.now - 2.hours
+    # Both on today's row whatever the clock says: "now - 2 hours" lands on
+    # yesterday's row between 00:00 and 02:00.
+    first = Time.now.change(:hour => 10)
     ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.1', :path => '/issues.json'), first)
-    ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.2', :path => '/projects.json'))
+    ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.2', :path => '/projects.json'), first + 2.hours)
 
     row = sole_row
     assert_equal 2, row.requests
@@ -126,7 +128,10 @@ class RedmineExpertMetricsApiUsageModelTest < ActiveSupport::TestCase
   end
 
   def test_late_insert_race_loser_does_not_move_last_details_back
-    now = Time.now
+    # Whole seconds: on Rails 6.1 create! drops the fraction, but bump's raw
+    # bind keeps it and MySQL rounds it into DATETIME(0) (MariaDB truncates),
+    # so first_at would read a second late about half the time.
+    now = Time.now.change(:usec => 0)
     ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.2', :path => '/later.json'), now)
     # An earlier request that lost the insert race arrives afterwards.
     ExpertMetricsApiUsage.record!(attrs(:ip => '10.0.0.1', :path => '/earlier.json'), now - 30.seconds)

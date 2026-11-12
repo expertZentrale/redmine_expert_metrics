@@ -42,8 +42,8 @@ hour](docs/screenshots/en/04-grafana.png)
   [API usage](#api-usage).
 - **Administration → expert Metrics → Slow requests** (`/admin/slow_requests`, also `.json`):
   requests over the configured threshold with the time spent in the database, views, plugin hooks
-  and garbage collection, the slowest SQL statements (values removed) and the slowest hook
-  listeners, plus a summary per controller and action. See
+  and garbage collection, the slowest and the most frequent SQL statements (values removed) and
+  the slowest hook listeners, plus a summary per controller and action. See
   [Performance metrics](#performance-metrics).
 - **`GET /metrics`**: Prometheus text exposition with aggregate numbers only (no names).
 
@@ -166,6 +166,16 @@ with its next request.
   are written — a slow database makes every request slow, and recording all of them would add
   load where there is already too much. Rows are deleted after **14 days**. A threshold of `0`
   stores every request; use it only for short measurements.
+- **Most frequent statements**: besides the five slowest statements, each slow request keeps the
+  five statement *shapes* it ran most often (same statement, different values; only shapes that ran
+  more than once), each with how often
+  it came from the database and from the query cache and its total time. An N+1 query — one
+  statement per row of an issue list or CSV export — is thousands of fast statements that never
+  appear among the slowest, but heads this list (for example `919× Checklist Load`). The `warn`
+  line names the top one as `most_frequent=919x Checklist Load`, so the log points at it even when
+  the row was not written. Counting costs each request one short key per statement; the values are
+  removed only for the five shapes that are stored, and right away for statements over 4,000
+  characters, so a request never holds on to its large INSERTs or IN lists.
 - **Server-Timing**: administrators get a `Server-Timing` response header (`app`, `db` with the
   query count, `view`, `hooks`, `gc`), which the browser's developer tools show under
   *Network → Timing*. Handy to check a single page in production without access to logs.

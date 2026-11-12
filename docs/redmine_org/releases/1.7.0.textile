@@ -1,0 +1,13 @@
+h3. redmine_expert_metrics 1.7.0 — 2026-11-11
+
+h4. Added
+
+* *Slow requests name their most frequent SQL statements.* Next to the five slowest statements, each slow request now keeps the five statement shapes it ran most often (the same statement with different values, only those run more than once), with how often each came from the database and from the query cache and its total time. An N+1 query (one statement per row of an issue list or CSV export) is thousands of fast statements that never appear among the slowest; now it heads this list. Shown on the *Slow requests* page under _Details_ and as @frequent_sql@ in @/admin/slow_requests.json@. The slow-request log line names the top one, for example @most_frequent=919x Checklist Load@.
+
+h4. Changed
+
+* Every release is now also tested on MySQL 8.4 and PostgreSQL 17 (Redmine 5.1 and 7.0), next to MariaDB for all supported Redmine versions.
+
+h4. Upgrade notes
+
+One migration (a new column on the slow-request table). Replace the plugin directory, run @bundle exec rake redmine:plugins:migrate NAME=redmine_expert_metrics RAILS_ENV=production@ and restart.

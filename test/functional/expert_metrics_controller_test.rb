@@ -236,7 +236,7 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
   def test_slow_requests_html_lists_rows_and_summary
     ExpertMetricsSlowRequest.delete_all
     record_slow_request('issues', 'show', 3200, Time.now - 1.hour)
-    record_slow_request('issues', 'show', 2100, Time.now - 2.hours)
+    record_slow_request('issues', 'show', 2100, Time.now - 2.hours, false)
     record_slow_request('issues', 'index', 2500, Time.now - 3.days)
     @request.session[:user_id] = 1
 
@@ -248,6 +248,10 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     assert_select 'table.expert-metrics-slow-requests th', :text => 'User'
     assert_select 'table.expert-metrics-slow-requests td.username a', :text => 'jsmith'
     assert_select 'table.expert-metrics-slow-requests details li code', :text => 'SELECT * FROM issues WHERE id = ?'
+    # One row was stored by a version without frequent_sql: no list, no error.
+    assert_select 'table.expert-metrics-slow-requests ul.expert-metrics-frequent-sql', 1
+    assert_select 'ul.expert-metrics-frequent-sql li', :text => /919× from the database, 13× from the query cache/
+    assert_select 'ul.expert-metrics-frequent-sql li em', :text => 'Checklist Load'
     assert_select 'p.warning a[href=?]', '/settings/plugin/redmine_expert_metrics'
 
     get :slow_requests, :params => { :days => '7' }
@@ -270,6 +274,8 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
     assert_equal 'show', request['action']
     assert_equal 3200, request['duration_ms']
     assert_equal 'SELECT * FROM issues WHERE id = ?', request['top_sql'].first['sql']
+    assert_equal 919, request['frequent_sql'].first['count']
+    assert_equal 'Checklist Load', request['frequent_sql'].first['name']
     assert_equal 'jsmith', request['user']
   end
 
@@ -285,14 +291,18 @@ class ExpertMetricsControllerTest < Redmine::ControllerTest
 
   private
 
-  def record_slow_request(controller, action, duration_ms, at)
+  # frequent: false stores the row as a plugin version before 1.7.0 did.
+  def record_slow_request(controller, action, duration_ms, at, frequent = true)
+    frequent_sql = [{ 'count' => 919, 'cached' => 13, 'ms' => 412.3, 'name' => 'Checklist Load',
+                      'sql' => 'SELECT `checklists`.* FROM `checklists` WHERE `checklists`.`issue_id` = ?' }].to_json
     ExpertMetricsSlowRequest.create!(
       :created_at => at, :host => 'redmine-0', :controller_name => controller, :action_name => action,
       :http_method => 'GET', :request_format => 'html', :path => "/#{controller}/1", :status => 200,
       :duration_ms => duration_ms, :db_ms => duration_ms - 200, :view_ms => 150, :hooks_ms => 40,
       :sql_count => 120, :sql_cached => 30, :user_id => 2,
       :top_sql => [{ 'ms' => 900.5, 'name' => 'Issue Load', 'sql' => 'SELECT * FROM issues WHERE id = ?' }].to_json,
-      :hooks => [{ 'hook' => 'view_issues_show_details_bottom', 'listener' => 'Foo::Hooks', 'ms' => 30.0, 'calls' => 1 }].to_json
+      :hooks => [{ 'hook' => 'view_issues_show_details_bottom', 'listener' => 'Foo::Hooks', 'ms' => 30.0, 'calls' => 1 }].to_json,
+      :frequent_sql => (frequent ? frequent_sql : nil)
     )
   end
 

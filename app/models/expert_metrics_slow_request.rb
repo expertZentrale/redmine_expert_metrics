@@ -19,6 +19,13 @@ class ExpertMetricsSlowRequest < ActiveRecord::Base
     false
   end
 
+  # False until db/migrate/004 has run (column frequent_sql). Schema cache too.
+  def self.frequent_sql_available?
+    available? && column_names.include?('frequent_sql')
+  rescue StandardError
+    false
+  end
+
   def self.purge!(now = Time.now)
     where('created_at < ?', now - RETENTION_DAYS.days).delete_all
   end
@@ -41,6 +48,12 @@ class ExpertMetricsSlowRequest < ActiveRecord::Base
 
   def top_sql_list
     parse_list(top_sql)
+  end
+
+  # Most frequent statement shapes: [{ 'count', 'cached', 'ms', 'name', 'sql' }].
+  # Empty for rows stored before db/migrate/004 or by a plugin version without it.
+  def frequent_sql_list
+    has_attribute?(:frequent_sql) ? parse_list(self[:frequent_sql]) : []
   end
 
   def hook_list
