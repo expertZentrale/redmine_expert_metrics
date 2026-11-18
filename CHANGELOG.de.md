@@ -4,6 +4,28 @@
 >
 > Maßgeblich ist die englische Fassung; diese Datei ist der deutsche Spiegel.
 
+## [1.9.0] - 2026-11-19
+
+### Hinzugefügt
+
+- **Gescheiterte Mails nennen ihre Empfänger.** Der Kern loggt eine gescheiterte Zustellung nur als
+  `Email delivery error: <SMTP-Antwort>`, ohne Empfänger und ohne Ticket. Einen Empfänger, den der
+  Mailserver nicht mehr kennt (`550 5.4.1 Recipient address rejected`), konnte man so im Log nicht
+  finden. Das Plugin schreibt jetzt je Mail, die ActionMailer nicht zustellen konnte, eine
+  `warn`-Zeile mit Grund, Mailer-Klasse, Empfängern, Message-ID (die des Kerns nennt das Objekt und
+  die Benutzer-ID des Empfängers) und Fehlertext, zum Beispiel
+  `redmine_expert_metrics: mail delivery failed: 550 5.4.1 mailer=Mailer recipients=user@example.com message_id=redmine.journal-4711.20261118122404.42@example.com error=…`.
+  Neuer Zähler `redmine_mail_delivery_failures_total{mailer, reason}`, der Grund ist der
+  SMTP-Antwortcode (`550 5.4.1`, `451 4.3.2`) oder die Fehlerklasse (`Net::ReadTimeout`).
+  Empfängeradressen stehen nur bei gescheiterten Mails im Log.
+
+### Behoben
+
+- **Eine Benachrichtigung, die der Kern nicht zustellen konnte, zählt nicht mehr als zugestellt.**
+  Der Mailer des Kerns schluckt den Zustellfehler, und Mail informiert danach seine Observer wie
+  bei einer zugestellten Mail. `redmine_notifications_sent_total` enthielt deshalb gescheiterte
+  Mails. Sie zählen jetzt nur noch in `redmine_mail_delivery_failures_total`.
+
 ## [1.8.0] - 2026-11-12
 
 ### Hinzugefügt

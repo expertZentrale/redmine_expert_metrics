@@ -71,6 +71,7 @@ module RedmineExpertMetrics
         'issues_open'       => Issue.open.count,
         'issues_closed'     => Issue.open(false).count,
         'notifications_sent' => notification_counts,
+        'mail_delivery_failures' => mail_delivery_failure_counts,
         'helpdesk_mails'    => helpdesk_mail_counts,
         'api_requests'      => api_usage_enabled ? api_request_counts : nil,
         'api_users'         => api_usage_enabled ? api_user_counts : nil,
@@ -108,6 +109,16 @@ module RedmineExpertMetrics
     def notification_counts
       return {} unless ExpertMetricsCounter.available?
       ExpertMetricsCounter.values(ExpertMetricsCounter::NOTIFICATIONS_SENT)
+    end
+
+    # Mails ActionMailer failed to deliver, per mailer class and reason
+    # (MailFailures): { 'Mailer' => { '550 5.4.1' => 3 } }.
+    def mail_delivery_failure_counts
+      return {} unless ExpertMetricsCounter.available?
+      ExpertMetricsCounter.values(ExpertMetricsCounter::MAIL_DELIVERY_FAILURES).each_with_object({}) do |(label, count), h|
+        mailer, reason = label.split('|', 2)
+        (h[mailer] ||= {})[reason.to_s] = count
+      end
     end
 
     # API requests since the plugin recorded them, by HTTP verb and auth method:

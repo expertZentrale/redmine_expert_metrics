@@ -41,6 +41,16 @@ module RedmineExpertMetrics
         lines << sample('redmine_notifications_sent_total', { 'project' => project }, count)
       end
 
+      counter(lines, 'redmine_mail_delivery_failures_total',
+              'Mails ActionMailer failed to deliver, by mailer class (core notifications: Mailer) and reason: the SMTP reply code ("550 5.4.1") or the error class ("Net::ReadTimeout"). Recipients and Message-ID are in the warn log line.')
+      # to_h: a snapshot cached by an older plugin version lacks the key.
+      snapshot['mail_delivery_failures'].to_h.each do |mailer, reasons|
+        reasons.each do |reason, count|
+          lines << sample('redmine_mail_delivery_failures_total',
+                          { 'mailer' => mailer, 'reason' => reason }, count)
+        end
+      end
+
       if snapshot['helpdesk_mails']
         counter(lines, 'redmine_helpdesk_mails_total',
                 'Mails recorded by redmine_expert_helpdesk per project: in = received from customers, out = sent to customers, init = initial mail of a ticket opened in Redmine. Counted when the mail is recorded, under the ticket\'s project at that time; moving or deleting tickets does not lower it.')

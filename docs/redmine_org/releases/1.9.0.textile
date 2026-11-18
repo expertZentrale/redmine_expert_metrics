@@ -1,0 +1,13 @@
+h3. redmine_expert_metrics 1.9.0 — 2026-11-19
+
+h4. Added
+
+* *Failed mail deliveries name their recipients.* Core logs a failed delivery only as @Email delivery error: <SMTP reply>@, without recipient or issue. The plugin now writes one @warn@ line per mail that ActionMailer failed to deliver, with the reason, the mailer class, the recipients, the Message-ID (core's names the object and the recipient's user id) and the error text. New counter @redmine_mail_delivery_failures_total@ with the labels @mailer@ and @reason@ (SMTP reply code such as @550 5.4.1@, or the error class such as @Net::ReadTimeout@). Recipient addresses appear in the log only for mails that failed.
+
+h4. Fixed
+
+* *A notification that core failed to deliver no longer counts as delivered* in @redmine_notifications_sent_total@.
+
+h4. Upgrade notes
+
+No migrations. Replace the plugin directory and restart.

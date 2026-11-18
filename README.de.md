@@ -57,7 +57,8 @@ Benachrichtigungsmail pro Stunde](docs/screenshots/de/04-grafana.png)
 | `redmine_users_total` | `status` = `active`, `registered`, `locked` | Benutzerkonten |
 | `redmine_projects_total` | `status` = `active` | Projekte |
 | `redmine_issues_total` | `state` = `open`, `closed` | Tickets nach dem Geschlossen-Kennzeichen ihres Status |
-| `redmine_notifications_sent_total` | `project` | Benachrichtigungs-Mails, die der Redmine-Kern an seine Benutzer zugestellt hat, eine pro Empfänger (Counter); leeres Projekt für Konto- und Sicherheitsmails |
+| `redmine_notifications_sent_total` | `project` | Benachrichtigungs-Mails, die der Redmine-Kern an seine Benutzer zugestellt hat, eine pro Empfänger (Counter); leeres Projekt für Konto- und Sicherheitsmails. Gescheiterte Zustellungen zählen ab 1.9.0 nicht mit |
+| `redmine_mail_delivery_failures_total` | `mailer` (`Mailer` = Kern-Benachrichtigungen), `reason` = SMTP-Antwortcode (`550 5.4.1`) oder Fehlerklasse (`Net::ReadTimeout`) | Mails, die ActionMailer nicht zustellen konnte (Counter), siehe [Gescheiterte Zustellungen](#gescheiterte-zustellungen) |
 | `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | Mails aus [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` von Kunden empfangen, `out` an Kunden gesendet (Antworten, Autoresponder, Nachfragen), `init` Erstmail eines in Redmine angelegten Tickets. Gezählt beim Anlegen der Mail, im Projekt des Tickets zu diesem Zeitpunkt, ab 1.6.1 (beginnt bei 0). Nur vorhanden, wenn dieses Plugin installiert ist (Counter) |
 | `redmine_api_requests_total`¹ | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | mit API-Zugangsdaten angemeldete Anfragen (Counter) |
 | `redmine_api_users`¹ | `window` = `1d`, `7d`, `30d` | verschiedene Benutzer mit API-Anfragen in den letzten n Kalendertagen, heute eingeschlossen |
@@ -238,6 +239,41 @@ dieselben Werte (siehe unten), also mit `max` zusammenfassen:
 ```promql
 max by (project) (increase(redmine_helpdesk_mails_total{direction="in"}[24h]))
 max by (project) (increase(redmine_notifications_sent_total[1h]))
+```
+
+### Gescheiterte Zustellungen
+
+Der Kern fängt Zustellfehler ab und loggt nur `Email delivery error: <SMTP-Antwort>`, ohne
+Empfänger und ohne Ticket. Das Plugin hört auf das ActionMailer-Ereignis `deliver.action_mailer`,
+das den Fehler zusammen mit den Empfängern und der Message-ID enthält, und schreibt je
+gescheiterter Mail eine `warn`-Zeile:
+
+```
+redmine_expert_metrics: mail delivery failed: 550 5.4.1 mailer=Mailer recipients=user@example.com message_id=redmine.journal-4711.20261118122404.42@example.com error=550 5.4.1 Recipient address rejected: Access denied. …
+```
+
+- Die Message-ID des Kerns nennt das Objekt und die Benutzer-ID des Empfängers:
+  `redmine.journal-4711.….42@…` ist die Benachrichtigung zu Journal 4711 an Benutzer 42.
+  Kontomails ohne Objekt tragen eine zufällige Message-ID.
+- Die Zeile enthält Empfängeradressen, und zwar nur von gescheiterten Mails. Der Fehlertext wird
+  nach 300 Zeichen abgeschnitten.
+- `redmine_mail_delivery_failures_total` zählt die Fehler je Mailer und Grund. Ein Mailserver, der
+  ablehnt oder nicht antwortet, zeigt sich so als Sprung, ein Empfänger, den es nicht mehr gibt,
+  als stetiges Rinnsal von `550 5.4.1`.
+- Erfasst wird jeder Mailer, der über ActionMailer sendet, der des Kerns und die anderer Plugins
+  (das Label `mailer` trennt sie). Mails, die ein Plugin an ActionMailer vorbei sendet (eigene
+  SMTP-Verbindung, eine HTTP-API), nicht.
+- Bis 1.8.0 zählte eine Benachrichtigung, die der Kern nicht zustellen konnte, in
+  `redmine_notifications_sent_total` als zugestellt (Mail informiert seine Observer auch, nachdem
+  der Kern den Fehler geschluckt hat).
+
+```promql
+# Gescheiterte Benachrichtigungen je Grund und Stunde
+max by (reason) (increase(redmine_mail_delivery_failures_total{mailer="Mailer"}[1h]))
+```
+
+```logql
+{app="redmine"} |= "mail delivery failed"
 ```
 
 ## Mehrere Instanzen (Kubernetes)
