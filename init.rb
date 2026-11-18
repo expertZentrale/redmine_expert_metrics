@@ -11,6 +11,7 @@ require 'redmine'
 
 require File.expand_path('../lib/redmine_expert_metrics/collector', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/exposition', __FILE__)
+require File.expand_path('../lib/redmine_expert_metrics/mail_failures', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/mail_observer', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/helpdesk_message_patch', __FILE__)
 require File.expand_path('../lib/redmine_expert_metrics/api_usage_patch', __FILE__)
@@ -24,7 +25,7 @@ Redmine::Plugin.register :redmine_expert_metrics do
   name 'Redmine expert Metrics'
   author 'Dennis Buehring'
   description 'Shows who is currently working in Redmine, who uses the REST API with which client and which requests are slow, and exposes that (plus a few basic totals and per-process request, hook, job and memory metrics) as Prometheus metrics. Works on Redmine 5.1 - 7.x.'
-  version '1.8.0'
+  version '1.9.0'
   url 'https://github.com/expertZentrale/redmine_expert_metrics'
   requires_redmine :version_or_higher => '5.0'
 
@@ -64,6 +65,9 @@ end
 # Count delivered notification mails. Mail.register_observer ignores a module
 # that is already registered, so re-running init.rb (dev reload) is harmless.
 ActionMailer::Base.register_observer(RedmineExpertMetrics::MailObserver)
+# Log and count mails ActionMailer fails to deliver, with their recipients
+# (core only logs the SMTP error). Subscribes once, see MailFailures.subscribe!.
+RedmineExpertMetrics::MailFailures.subscribe!
 
 # Count helpdesk mails as redmine_expert_helpdesk records them (see
 # HelpdeskMessagePatch). Without that plugin there is nothing to count. Guarded

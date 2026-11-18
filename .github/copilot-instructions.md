@@ -53,6 +53,14 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
   `after_commit` on create under the ticket's project at that moment; incoming mail without a
   mailbox (legacy import) is skipped. Never derive a counter from current table contents:
   moving or deleting rows lowers it, and Prometheus reads every drop as a reset (1.6.1).
+- `lib/redmine_expert_metrics/mail_failures.rb` – subscribed once to `deliver.action_mailer`
+  (`MailFailures.subscribe!` from init.rb). When the payload carries `:exception_object`, it writes
+  the `mail delivery failed:` warn line (reason, mailer, recipients, Message-ID, error cut to 300
+  chars) and counts `mail_delivery_failures` (label `"<mailer>|<reason>"`, reason = SMTP code
+  `550 5.4.1` or error class). Core's `Mailer.deliver_mail` swallows the error and Mail then
+  informs its observers anyway, so the subscriber marks the Message-ID in a thread-local and
+  `MailObserver.delivered_email` calls `MailFailures.failed?` first (it clears the mark, so a
+  mailer that re-raises and skips the observers cannot leave it on the next mail).
 - `lib/redmine_expert_metrics/performance.rb` + `registry.rb` + `request_timing_patch.rb` +
   `hook_timing_patch.rb` – performance metrics. `RequestTimingPatch` (prepended to
   `ApplicationController#process_action`, skips `/metrics` itself) opens a `Performance::Stats` in
@@ -87,7 +95,7 @@ rebuild with `docker-compose -f docker-compose.yml up --build`).
 - `lib/redmine_expert_metrics/purgeable.rb` – hourly `purge_if_due` claim (Redis SET NX), extended
   by `ExpertMetricsApiUsage` (90 days) and `ExpertMetricsSlowRequest` (14 days).
 - `init.rb` – plugin registration, admin menu entry (icon switch for Redmine 5 vs 6/7),
-  observer registration, `ApiUsagePatch` / `RequestTimingPatch` / `HookTimingPatch` prepends
+  observer registration, `MailFailures.subscribe!`, `ApiUsagePatch` / `RequestTimingPatch` / `HookTimingPatch` prepends
   (guarded against dev reload).
 
 ## Conventions

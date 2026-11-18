@@ -5,6 +5,8 @@ class ExpertMetricsCounter < ActiveRecord::Base
   NOTIFICATIONS_SENT = 'notifications_sent'.freeze
   # Label "<project identifier>:<direction>"; identifiers never contain a colon.
   HELPDESK_MAILS = 'helpdesk_mails'.freeze
+  # Label "<mailer class>|<reason>"; a reason may contain ':' ("Net::ReadTimeout").
+  MAIL_DELIVERY_FAILURES = 'mail_delivery_failures'.freeze
 
   validates :name, :presence => true
 

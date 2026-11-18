@@ -4,6 +4,28 @@
 >
 > EN is authoritative — release notes are generated from this file.
 
+## [1.9.0] - 2026-11-19
+
+### Added
+
+- **Failed mail deliveries name their recipients.** Core logs a failed delivery only as
+  `Email delivery error: <SMTP reply>`, without recipient or issue, so a recipient the mail server
+  no longer knows (`550 5.4.1 Recipient address rejected`) could not be found from the log. The
+  plugin now writes one `warn` line per mail that ActionMailer failed to deliver, with the reason,
+  the mailer class, the recipients, the Message-ID (core's names the object and the recipient's
+  user id) and the error text, for example
+  `redmine_expert_metrics: mail delivery failed: 550 5.4.1 mailer=Mailer recipients=user@example.com message_id=redmine.journal-4711.20261118122404.42@example.com error=…`.
+  New counter `redmine_mail_delivery_failures_total{mailer, reason}`, the reason being the SMTP
+  reply code (`550 5.4.1`, `451 4.3.2`) or the error class (`Net::ReadTimeout`). Recipient
+  addresses appear in the log only for mails that failed.
+
+### Fixed
+
+- **A notification that core failed to deliver no longer counts as delivered.** Core's Mailer
+  swallows the delivery error, and Mail then informs its observers as for a delivered mail, so
+  `redmine_notifications_sent_total` included failed mails. They are now counted in
+  `redmine_mail_delivery_failures_total` only.
+
 ## [1.8.0] - 2026-11-12
 
 ### Added

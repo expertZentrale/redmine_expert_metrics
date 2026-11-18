@@ -8,12 +8,16 @@
 # security mails have no project and land under the empty label.
 #
 # Redmine sends one mail per recipient, so the counter is "notifications
-# delivered", not "events notified".
+# delivered", not "events notified". Mail informs observers after core's
+# Mailer swallowed a delivery error too; those mails are counted by
+# MailFailures instead (up to 1.8.0 they were counted here as delivered).
 module RedmineExpertMetrics
   module MailObserver
     module_function
 
     def delivered_email(mail)
+      # First, for every mail: failed? clears the mark it checks.
+      return if MailFailures.failed?(mail)
       return unless header(mail, 'X-Mailer') == 'Redmine'
       # Plugin loaded but migration not run yet: count nothing, warn nothing.
       return unless ExpertMetricsCounter.available?

@@ -57,7 +57,8 @@ hour](docs/screenshots/en/04-grafana.png)
 | `redmine_users_total` | `status` = `active`, `registered`, `locked` | user accounts |
 | `redmine_projects_total` | `status` = `active` | projects |
 | `redmine_issues_total` | `state` = `open`, `closed` | issues by the closed flag of their status |
-| `redmine_notifications_sent_total` | `project` | notification mails Redmine core delivered to its users, one per recipient (counter); empty project for account and security mails |
+| `redmine_notifications_sent_total` | `project` | notification mails Redmine core delivered to its users, one per recipient (counter); empty project for account and security mails. Failed deliveries are not counted from 1.9.0 on |
+| `redmine_mail_delivery_failures_total` | `mailer` (`Mailer` = core notifications), `reason` = SMTP reply code (`550 5.4.1`) or error class (`Net::ReadTimeout`) | mails ActionMailer failed to deliver (counter), see [Failed deliveries](#failed-deliveries) |
 | `redmine_helpdesk_mails_total` | `project`, `direction` = `in`, `out`, `init` | mails recorded by [redmine_expert_helpdesk](https://github.com/expertZentrale/redmine_expert_helpdesk): `in` received from customers, `out` sent to customers (replies, autoresponder, follow-ups), `init` initial mail of a ticket opened in Redmine. Counted when the mail is recorded, under the ticket's project at that time, from 1.6.1 on (starts at 0). Only present when that plugin is installed (counter) |
 | `redmine_api_requests_total`¹ | `method` = `GET`, `POST`, …, `auth` = `key`, `basic`, `password`, `oauth` | requests authenticated by API credentials (counter) |
 | `redmine_api_users`¹ | `window` = `1d`, `7d`, `30d` | distinct users with API requests in the last n calendar days, today included |
@@ -230,6 +231,41 @@ values (see below), so aggregate with `max`:
 ```promql
 max by (project) (increase(redmine_helpdesk_mails_total{direction="in"}[24h]))
 max by (project) (increase(redmine_notifications_sent_total[1h]))
+```
+
+### Failed deliveries
+
+Core catches delivery errors and logs only `Email delivery error: <SMTP reply>`, without the
+recipient or the issue. The plugin listens to ActionMailer's `deliver.action_mailer` event, which
+carries the error together with the recipients and the Message-ID, and writes one `warn` line per
+failed mail:
+
+```
+redmine_expert_metrics: mail delivery failed: 550 5.4.1 mailer=Mailer recipients=user@example.com message_id=redmine.journal-4711.20261118122404.42@example.com error=550 5.4.1 Recipient address rejected: Access denied. …
+```
+
+- Core's Message-ID names the object and the recipient's user id: `redmine.journal-4711.….42@…`
+  is the notification about journal 4711 to user 42. Account mails without an object carry a
+  random Message-ID.
+- The line contains recipient addresses, and only for mails that failed. The error text is cut
+  after 300 characters.
+- `redmine_mail_delivery_failures_total` counts the failures per mailer and reason, so a mail
+  server that rejects or does not answer shows up as a jump, and a recipient that no longer exists
+  as a steady trickle of `550 5.4.1`.
+- Every mailer that sends through ActionMailer is covered, core's and those of other plugins (the
+  `mailer` label tells them apart). Mail a plugin sends past ActionMailer (its own SMTP connection,
+  an HTTP API) is not.
+- Up to 1.8.0, a notification that core failed to deliver was counted in
+  `redmine_notifications_sent_total` as delivered (Mail informs its observers also after core
+  swallowed the error).
+
+```promql
+# Failed notifications per reason and hour
+max by (reason) (increase(redmine_mail_delivery_failures_total{mailer="Mailer"}[1h]))
+```
+
+```logql
+{app="redmine"} |= "mail delivery failed"
 ```
 
 ## Multiple instances (Kubernetes)
