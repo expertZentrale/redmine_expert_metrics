@@ -5,9 +5,16 @@
 # its observers as if the mail had gone out. ActionMailer wraps each delivery
 # in the "deliver.action_mailer" event, and when the SMTP server rejects the
 # mail or does not answer, the event's payload carries the exception next to
-# the recipients and the Message-ID. Core's Message-ID names the object and the
-# recipient's user id ("redmine.journal-123.20261118122404.628@host"), so the
-# warn line written here says which notification failed for whom.
+# the recipients and the Message-ID. Core's rescue does not hide it from the
+# event: Mailer.deliver_mail sets mail.raise_delivery_errors and rescues around
+# `super`, and the event is instrumented inside `super`
+# (ActionMailer::Base.deliver_mail), where the error is recorded in the payload
+# and re-raised before it reaches core's rescue. The tests run with
+# raise_delivery_errors off, as in production.
+#
+# Core's Message-ID names the object and the recipient's user id
+# ("redmine.journal-123.20261118122404.628@host"), so the warn line written
+# here says which notification failed for whom.
 #
 # The event covers every mailer that sends through ActionMailer (core
 # notifications, plugin mailers); the counter keeps them apart by mailer class.
